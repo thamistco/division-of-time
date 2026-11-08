@@ -1,1 +1,27 @@
-{"name":"Division of Time","short_name":"Time","description":"See where your time goes, every day.","start_url":"./","scope":"./","display":"standalone","background_color":"#f4f3ef","theme_color":"#15172b","icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png"},{"src":"icon-512.png","sizes":"512x512","type":"image/png"},{"src":"icon.svg","sizes":"any","type":"image/svg+xml"}]}
+{
+ "name": "Division of Time",
+ "short_name": "Time",
+ "description": "A calm time tracker for busy clinicians and parents, linked to Google Calendar.",
+ "start_url": "./",
+ "scope": "./",
+ "display": "standalone",
+ "background_color": "#F7F7F5",
+ "theme_color": "#4F46E5",
+ "icons": [
+  {
+   "src": "icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  },
+  {
+   "src": "icon.svg",
+   "sizes": "any",
+   "type": "image/svg+xml"
+  }
+ ]
+}

@@ -4,88 +4,97 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Division of Time</title>
-<meta name="description" content="See where your time goes. A calm daily time tracker linked to Google Calendar.">
-<meta name="theme-color" content="#0f1222" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#f4f3ef" media="(prefers-color-scheme: light)">
+<meta name="description" content="See where your time goes. A calm time tracker for busy clinicians and parents, linked to Google Calendar.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F7F7F5" id="themeColor">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<script>/* set theme before paint to avoid a flash */(function(){try{var t=(JSON.parse(localStorage.getItem('dot.v1'))||{}).settings||{};t=t.theme||'system';if(t==='system')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-today" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M5 20V11M12 20V5M19 20v-6"/></symbol>
+  <symbol id="i-cats" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="2"/></symbol>
+  <symbol id="i-set" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
+  <symbol id="i-focus" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></symbol>
+  <symbol id="i-cmd" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></symbol>
+</svg>
 <div class="app">
 <header class="topbar">
-  <div class="brand"><img src="icon.svg" alt="" width="30" height="30"><div><span class="name">Division of Time</span><span class="sub" id="dateLine"></span></div></div>
+  <div class="brand"><img src="icon.svg" alt="" width="32" height="32"><div><span class="name">Division of Time</span><span class="sub" id="dateLine"></span></div></div>
   <div class="top-right">
-    <button class="gpill" id="gPill" title="Google Calendar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span id="gPillTxt">Connect calendar</span></button>
+    <span class="pill exam" id="examPill" hidden></span>
+    <button class="pill hide-m" id="cmdBtn" title="Command menu (Ctrl K)" aria-label="Command menu"><svg class="i"><use href="#i-cmd"/></svg><kbd>Ctrl K</kbd></button>
+    <button class="pill" id="gPill" title="Google Calendar"><svg class="i"><use href="#i-cal"/></svg><span class="lbl" id="gPillTxt">Connect calendar</span></button>
   </div>
 </header>
 
-<section class="hero" aria-label="Timer">
-  <div class="hero-row">
-    <input id="desc" type="text" placeholder="What are you doing right now?" autocomplete="off" aria-label="What are you doing">
-    <button id="catBtn" class="cat-btn" aria-haspopup="listbox"><span class="dot"></span><span class="lbl">Category</span><svg viewBox="0 0 24 24" class="chev"><path d="M7 10l5 5 5-5"/></svg></button>
-  </div>
-  <div class="hero-row bottom">
-    <div class="clock"><div class="elapsed" id="elapsed">0:00:00</div><div class="hint" id="heroHint">Tap a category below to start tracking</div></div>
+<section class="hero" id="hero" aria-label="Timer">
+  <div class="hero-grid">
+    <div class="hero-top">
+      <input id="desc" type="text" placeholder="What are you working on?" autocomplete="off" aria-label="What are you working on">
+      <button id="catBtn" class="cat-btn" aria-haspopup="listbox"><span class="dot"></span><span class="lbl">Category</span><svg class="chev" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg></button>
+    </div>
+    <div class="clock"><div class="elapsed" id="elapsed" aria-hidden="true">0:00:00</div><div class="hint" id="heroHint">Tap a category to start</div></div>
     <div class="hero-btns">
-      <button id="focusBtn" class="focus-btn" title="Start a timed focus session"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg><span id="focusLbl">Focus 50</span></button>
-      <button id="startBtn" class="start" aria-label="Start timer"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+      <button id="focusBtn" class="focus-btn" title="Start a timed focus session (F)"><svg class="i"><use href="#i-focus"/></svg><span id="focusLbl">Focus 50</span></button>
+      <button id="startBtn" class="start" aria-label="Start timer" title="Start / stop (Space)"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></svg></button>
     </div>
   </div>
   <div class="focusbar" id="focusBar" hidden><i></i></div>
   <div class="nextstep" id="nextStep" hidden></div>
 </section>
+<div class="sr" aria-live="polite" id="live"></div>
 
-<div class="quick" id="quick" aria-label="Quick switch"></div>
+<div class="quick" id="quick" aria-label="Switch category"></div>
 
 <nav class="tabs" role="tablist">
-  <button role="tab" data-tab="today" class="active"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Today</span></button>
-  <button role="tab" data-tab="reports"><svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg><span>Insights</span></button>
-  <button role="tab" data-tab="categories"><svg viewBox="0 0 24 24"><circle cx="7" cy="7" r="3"/><circle cx="17" cy="7" r="3"/><circle cx="7" cy="17" r="3"/><circle cx="17" cy="17" r="3"/></svg><span>Categories</span></button>
-  <button role="tab" data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span>Settings</span></button>
+  <button role="tab" data-tab="today" class="active"><svg class="i"><use href="#i-today"/></svg><span>Today</span></button>
+  <button role="tab" data-tab="reports"><svg class="i"><use href="#i-chart"/></svg><span>Insights</span></button>
+  <button role="tab" data-tab="categories"><svg class="i"><use href="#i-cats"/></svg><span>Categories</span></button>
+  <button role="tab" data-tab="settings"><svg class="i"><use href="#i-set"/></svg><span>Settings</span></button>
 </nav>
 
 <main>
-<!-- TODAY -->
 <section id="tab-today" class="tab active">
   <div class="daynav">
-    <button id="prevDay" class="icon" aria-label="Previous day">‹</button>
+    <button id="prevDay" class="icon outline" aria-label="Previous day"><svg class="i"><use href="#i-left"/></svg></button>
     <h2 id="dayLabel">Today</h2>
-    <button id="nextDay" class="icon" aria-label="Next day">›</button>
-    <button id="todayBtn" class="ghost sm" hidden>Today</button>
+    <button id="todayBtn" class="sm outline" hidden>Today</button>
+    <button id="nextDay" class="icon outline" aria-label="Next day"><svg class="i"><use href="#i-right"/></svg></button>
   </div>
 
   <div class="stats">
     <div class="stat"><div class="k">Tracked</div><div class="v" id="sTracked">0m</div><div class="s" id="sTrackedSub"></div></div>
     <div class="stat"><div class="k">Untracked</div><div class="v" id="sUntracked">0m</div><div class="s">of waking hours</div></div>
     <div class="stat"><div class="k">Deep focus</div><div class="v" id="sFocus">0m</div><div class="s" id="sFocusSub"></div></div>
-    <div class="stat"><div class="k">Free time</div><div class="v" id="sFree">0m</div><div class="s" id="sFreeSub"></div></div>
+    <div class="stat"><div class="k">Family &amp; free</div><div class="v" id="sFree">0m</div><div class="s" id="sFreeSub"></div></div>
   </div>
 
   <div class="nudges" id="nudges"></div>
 
   <div class="grid2">
-    <div class="card daycard">
-      <div class="row-h"><h3>Plan vs actual</h3><div class="row-btns"><button class="ghost sm" id="logEvents" hidden></button><button class="ghost sm" id="addEntry">+ Add time</button></div></div>
+    <div class="card">
+      <div class="row-h"><h3>Plan vs actual</h3><div class="row-btns"><button class="sm" id="logEvents" hidden></button><button class="sm" id="addEntry">+ Add time</button></div></div>
       <div class="allday" id="allDay"></div>
-      <div class="dayhead"><span></span><span>Plan <small id="planSrc">· Google Calendar</small></span><span>Actual</span></div>
+      <div class="dayhead"><span></span><span id="planHead">Plan</span><span>Actual</span></div>
       <div class="dayscroll" id="dayScroll"><div class="daygrid" id="dayGrid"></div></div>
-      <p class="muted small" id="dayHelp">Tap an empty slot to fill it in. Tap a calendar event to log it.</p>
     </div>
     <div class="col">
-      <div class="card">
-        <h3>Where it went</h3>
-        <div class="donutwrap"><svg id="donut" viewBox="0 0 120 120"></svg><div class="legend" id="legend"></div></div>
-      </div>
-      <div class="card">
-        <h3>Daily goals</h3>
-        <div id="goals"></div>
-      </div>
+      <div class="card"><h3>Where it went</h3><div class="hbars" id="hbars"></div></div>
+      <div class="card"><h3>Goals</h3><div id="goals"></div></div>
     </div>
   </div>
 
@@ -94,20 +103,28 @@
     <ul class="entries" id="entries"></ul>
   </div>
 
-  <div class="card review">
-    <h3>Shutdown review</h3>
-    <p class="muted small">Two minutes at the end of the day. People who review their progress reach their goals more often.</p>
-    <label class="lab">How was today?</label>
-    <div class="rating" id="rating" role="radiogroup" aria-label="How was today?"></div>
-    <label class="lab" for="note">What went well? What stole your time?</label>
-    <textarea id="note" rows="2"></textarea>
-    <label class="lab" for="plan">Tomorrow's one big thing: "I will … at … in …"</label>
-    <input type="text" id="plan" placeholder="I will draft the audit at 9:00 in the clinic office">
-    <button class="ghost sm" id="planToCal" hidden>Add to Google Calendar</button>
+  <div class="card">
+    <h3>Shutdown review <small>· 3 minutes to close the day</small></h3>
+    <div class="review-grid">
+      <div>
+        <label class="lab">How was today?</label>
+        <div class="rating" id="rating" role="radiogroup" aria-label="How was today?"></div>
+        <label class="lab">How in control of your time did you feel?</label>
+        <div class="rating num" id="control" role="radiogroup" aria-label="Feeling in control"></div>
+        <label class="lab">Learning logs / case reviews written today</label>
+        <div class="counter"><button class="icon outline" id="ccrMinus" aria-label="One fewer">−</button><output id="ccr">0</output><button class="icon outline" id="ccrPlus" aria-label="One more">+</button><span class="muted small" id="ccrMonth"></span></div>
+      </div>
+      <div>
+        <label class="lab" for="note">Loose ends: what's unfinished, and the next step for each?</label>
+        <textarea id="note" rows="3" placeholder="Chase Mrs P's bloods → Tues 08:30 results slot"></textarea>
+        <label class="lab" for="plan">Tomorrow's one big thing: "I will … at … in …"</label>
+        <input type="text" id="plan" placeholder="I will write my CCR at 20:30 at the kitchen table">
+        <button class="sm" id="planToCal" style="margin-top:8px" hidden>Add to Google Calendar</button>
+      </div>
+    </div>
   </div>
 </section>
 
-<!-- REPORTS -->
 <section id="tab-reports" class="tab">
   <div class="seg" id="range">
     <button data-r="week" class="active">This week</button>
@@ -118,72 +135,77 @@
   <div class="stats">
     <div class="stat"><div class="k">Tracked awake</div><div class="v" id="rTotal">0h</div><div class="s" id="rAvg"></div></div>
     <div class="stat"><div class="k">Deep focus</div><div class="v" id="rFocus">0h</div><div class="s" id="rFocusSub"></div></div>
-    <div class="stat"><div class="k">Switches / hour</div><div class="v" id="rSwitch">–</div><div class="s">while tracking</div></div>
+    <div class="stat"><div class="k">Switches per hour</div><div class="v" id="rSwitch">–</div><div class="s">while tracking</div></div>
     <div class="stat"><div class="k">Plan kept</div><div class="v" id="rPlan">–</div><div class="s">of calendar time</div></div>
   </div>
-  <div class="card insight" id="insight"></div>
-  <div class="card">
-    <h3>Hours per day</h3>
-    <div class="barswrap"><svg id="bars" class="bars" viewBox="0 0 700 240" preserveAspectRatio="none"></svg></div>
-  </div>
+  <div class="card" id="trainCard"><h3>Training week <small id="trainSub"></small></h3><div class="train" id="train"></div></div>
+  <div class="card insight"><h3>What stands out</h3><ul id="insight"></ul></div>
+  <div class="card" id="wkCard"><h3>Your 168 hours <small>· each cell is 30 minutes</small></h3><div class="wk" id="wk"></div><div class="legend-row" id="wkLegend"></div></div>
+  <div class="card"><h3>Hours per day <small>· awake</small></h3><svg id="bars" class="bars" viewBox="0 0 700 220" role="img" aria-label="Hours per day"></svg></div>
   <div class="grid2 even">
-    <div class="card">
-      <h3>By category</h3>
-      <table class="tbl" id="rTable"><thead><tr><th>Category</th><th>Hours</th><th>Share</th><th>Goal</th></tr></thead><tbody></tbody></table>
-    </div>
-    <div class="card">
-      <h3>When you focus best <small class="muted">last 28 days</small></h3>
-      <div class="heat" id="heat"></div>
-      <p class="muted small" id="heatNote"></p>
+    <div class="card"><h3>By category</h3>
+      <table class="tbl" id="rTable"><thead><tr><th>Category</th><th>Hours</th><th class="hide-m">Share</th><th>Goal</th></tr></thead><tbody></tbody></table></div>
+    <div class="card"><h3>When you focus best <small>· last 28 days</small></h3><div class="heat" id="heat"></div><p class="muted small" id="heatNote"></p></div>
+  </div>
+  <div class="card" id="weekReview">
+    <h3>Weekly review <small id="wrSub"></small></h3>
+    <div class="review-grid">
+      <div><label class="lab" for="wrWins">Wins this week</label><textarea id="wrWins" rows="2"></textarea>
+        <label class="lab" for="wrDrop">What to drop, delegate or batch</label><textarea id="wrDrop" rows="2"></textarea></div>
+      <div><label class="lab" for="wrNext">Next week's top three</label><textarea id="wrNext" rows="2"></textarea>
+        <label class="lab" for="wrAdv">One big and one little adventure</label><input type="text" id="wrAdv" placeholder="Big: Saturday at Drusillas · Little: Tuesday ice cream on the seafront"></div>
     </div>
   </div>
-  <div class="card">
-    <h3>Top activities</h3>
-    <table class="tbl" id="rDesc"><thead><tr><th>Activity</th><th>Category</th><th>Hours</th></tr></thead><tbody></tbody></table>
-  </div>
+  <div class="card"><h3>Top activities</h3>
+    <table class="tbl" id="rDesc"><thead><tr><th>Activity</th><th>Category</th><th>Hours</th></tr></thead><tbody></tbody></table></div>
 </section>
 
-<!-- CATEGORIES -->
 <section id="tab-categories" class="tab">
   <div class="card">
-    <div class="row-h"><h3>Categories</h3><button class="primary sm" id="addCat">+ New</button></div>
-    <p class="muted small">Type tells the app what counts as work, deep focus, free time or sleep. Give a goal: "at least" for what you want more of, "at most" for what to keep in check.</p>
+    <div class="row-h"><h3>Categories</h3><div class="row-btns"><button class="sm" id="gpTemplate">Add GP trainee set</button><button class="primary sm" id="addCat">+ New</button></div></div>
+    <p class="muted small">Type tells the app what counts as clinical, admin, learning, family or free time. Goals can be daily, weekly or monthly; "at least" for what you want more of, "at most" for what to keep in check.</p>
     <ul class="catlist" id="catList"></ul>
   </div>
 </section>
 
-<!-- SETTINGS -->
 <section id="tab-settings" class="tab">
+  <div class="card"><h3>Google Calendar</h3><div id="gBox"></div></div>
   <div class="card">
-    <h3>Google Calendar</h3>
-    <div id="gBox"></div>
-  </div>
-  <div class="card">
-    <h3>Your day</h3>
+    <h3>Your week</h3>
     <div class="three">
       <label class="field">Wake up <input type="time" id="wake"></label>
       <label class="field">Work shutdown <input type="time" id="shutdown"></label>
       <label class="field">Bedtime <input type="time" id="bed"></label>
     </div>
+    <div class="three">
+      <label class="field">Training time (%)
+        <select id="ltft"><option value="100">Full time</option><option value="80">80% LTFT</option><option value="70">70% LTFT</option><option value="60">60% LTFT</option><option value="50">50% LTFT</option></select></label>
+      <label class="field">Next exam <input type="text" id="examName" placeholder="SCA"></label>
+      <label class="field">Exam date <input type="date" id="examDate"></label>
+    </div>
   </div>
   <div class="card">
     <h3>Focus &amp; reminders</h3>
     <label class="field">Focus session length
-      <select id="focusLen"><option value="25">25 min (Pomodoro)</option><option value="50">50 min</option><option value="90">90 min (deep work)</option></select>
-    </label>
-    <label class="check"><input type="checkbox" id="notifyOn"> Notifications: focus session ends, a timer runs over 3 hours, or nothing has been tracked for 30 minutes of waking time</label>
+      <select id="focusLen"><option value="25">25 min</option><option value="50">50 min</option><option value="90">90 min</option></select></label>
+    <label class="check"><input type="checkbox" id="notifyOn"> Notify me when a focus session ends, a timer passes 3 hours, or nothing's tracked for 30 waking minutes</label>
+    <label class="check"><input type="checkbox" id="hapticOn"> Haptic feedback on start and stop (Android)</label>
+  </div>
+  <div class="card">
+    <h3>Appearance</h3>
+    <div class="seg" id="themeSeg"><button data-t="system">System</button><button data-t="light">Light</button><button data-t="dark">Dark</button></div>
   </div>
   <div class="card">
     <h3>Your data</h3>
-    <p class="muted small">Entries are stored on this device. Export a backup to move them to another device.</p>
+    <p class="muted small">Entries are stored on this device only. Export a backup to move them to another device.</p>
     <div class="btns">
       <button id="expJson">Export backup</button>
       <button id="expCsv">Export CSV</button>
       <label class="btnlike">Import backup<input type="file" id="impJson" accept="application/json" hidden></label>
-      <button id="wipe" class="danger">Delete all data</button>
+      <button id="wipe" class="outline danger">Delete all data</button>
     </div>
   </div>
-  <p class="muted small center">Division of Time · works offline · install from your browser menu<br>Shortcuts: <kbd>S</kbd> start/stop · <kbd>F</kbd> focus · <kbd>N</kbd> describe · <kbd>1</kbd>–<kbd>9</kbd> switch category</p>
+  <p class="muted small center">Division of Time · works offline · install from your browser's menu<br>Press <kbd>?</kbd> for keyboard shortcuts</p>
 </section>
 </main>
 </div>
@@ -200,9 +222,9 @@
       <label class="field">End <input id="eEnd" type="datetime-local" step="60"></label>
     </div>
     <label class="check"><input type="checkbox" id="eFocus"> Deep focus block</label>
-    <p class="err" id="eErr"></p>
+    <p class="err" id="eErr" role="alert"></p>
     <div class="dlgbtns">
-      <button type="button" class="danger ghost" id="eDel">Delete</button>
+      <button type="button" class="ghost danger" id="eDel">Delete</button>
       <span class="grow"></span>
       <button value="cancel" class="ghost">Cancel</button>
       <button type="button" id="eSave" class="primary">Save</button>
@@ -213,22 +235,18 @@
 <dialog id="catDlg">
   <form method="dialog">
     <h3 id="catTitle">Category</h3>
-    <div class="two">
-      <label class="field">Name <input id="cName" type="text" maxlength="30"></label>
-      <label class="field">Colour <input id="cColor" type="color"></label>
-    </div>
+    <label class="field">Name <input id="cName" type="text" maxlength="30"></label>
+    <div class="field">Colour<div class="swatches" id="cSwatches"></div></div>
     <label class="field">Type
-      <select id="cKind"><option value="work">Work</option><option value="growth">Growth &amp; study</option><option value="life">Life admin</option><option value="free">Free time (family, rest, exercise)</option><option value="sleep">Sleep</option></select>
-    </label>
-    <div class="two">
-      <label class="field">Daily goal
-        <select id="cGoalType"><option value="">No goal</option><option value="min">At least</option><option value="max">At most</option></select>
-      </label>
-      <label class="field">Hours <input id="cGoal" type="number" min="0" max="24" step="0.25"></label>
+      <select id="cKind"><option value="clinical">Clinical</option><option value="admin">Admin</option><option value="learning">Learning &amp; exams</option><option value="family">Family</option><option value="free">Free time &amp; health</option><option value="life">Life admin</option><option value="sleep">Sleep</option></select></label>
+    <div class="three">
+      <label class="field">Goal <select id="cGoalType"><option value="">None</option><option value="min">At least</option><option value="max">At most</option></select></label>
+      <label class="field">Hours <input id="cGoal" type="number" min="0" max="200" step="0.25"></label>
+      <label class="field">Per <select id="cPeriod"><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option></select></label>
     </div>
-    <label class="field">Calendar keywords <input id="cKeys" type="text" placeholder="e.g. surgery, clinic, patient"></label>
+    <label class="field">Calendar keywords <input id="cKeys" type="text" placeholder="surgery, clinic, patient"></label>
     <div class="dlgbtns">
-      <button type="button" class="danger ghost" id="cDel">Delete</button>
+      <button type="button" class="ghost danger" id="cDel">Delete</button>
       <span class="grow"></span>
       <button value="cancel" class="ghost">Cancel</button>
       <button type="button" id="cSave" class="primary">Save</button>
@@ -243,19 +261,38 @@
     <button class="primary" id="gKeep">Keep it running</button>
     <button id="gStopSeen"></button>
     <button id="gStopNow">Stop now</button>
-    <button class="danger ghost" id="gDiscard">Discard this timer</button>
+    <button class="ghost danger" id="gDiscard">Discard this timer</button>
   </div>
 </dialog>
 
 <dialog id="focusDlg">
   <h3>How focused were you?</h3>
   <p class="muted small" id="focusDlgTxt"></p>
-  <div class="rating big" id="fq"></div>
-  <label class="field">Next step, so you can pick up fast <input type="text" id="fNext" placeholder="e.g. finish the discussion section"></label>
+  <div class="rating num" id="fq" style="margin-bottom:16px"></div>
+  <label class="field">Next step, so you can pick up fast <input type="text" id="fNext" placeholder="Finish the discussion section"></label>
   <div class="dlgbtns"><span class="grow"></span><button class="ghost" id="fSkip">Skip</button><button class="primary" id="fSave">Save</button></div>
 </dialog>
 
-<div class="toast" id="toast" role="status"></div>
+<dialog id="cmd" aria-label="Command menu">
+  <input id="cmdIn" type="text" placeholder="Type a command or category…" autocomplete="off">
+  <div id="cmdList" role="listbox"></div>
+</dialog>
+
+<dialog id="keysDlg">
+  <h3>Keyboard shortcuts</h3>
+  <div class="keys">
+    <kbd>Space</kbd><span>Start or stop the timer</span>
+    <kbd>1</kbd><span>…<kbd>9</kbd> switch to that category</span>
+    <kbd>F</kbd><span>Start or end a focus session</span>
+    <kbd>N</kbd><span>Describe what you're doing</span>
+    <kbd>A</kbd><span>Add past time</span>
+    <kbd>←</kbd><span><kbd>→</kbd> previous / next day</span>
+    <kbd>Ctrl K</kbd><span>Command menu (or <kbd>/</kbd>)</span>
+  </div>
+  <div class="dlgbtns"><span class="grow"></span><button class="primary" onclick="this.closest('dialog').close()">Got it</button></div>
+</dialog>
+
+<div class="toast" id="toast" role="status"><span id="toastTxt"></span><button id="toastBtn" hidden>Undo</button></div>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>
