@@ -18,3 +18,10 @@ A calm, evidence-based time tracker for a GP trainee who is also a parent. Linke
 Aeon et al. 2021 (time management and wellbeing), Claessens et al. 2007, Harkin et al. 2016, Gollwitzer & Sheeran 2006, Masicampo & Baumeister 2011, Buehler et al. 1994, Leroy 2009, Mark et al. 2005/2008, Sharif et al. 2021, Whillans et al. 2017, COGPED training-week guidance, BMA safe-working guidance, GP Worklife Survey, GMC National Training Survey 2025, Vanderkam's 168 Hours. Design: WCAG 2.2 contrast, Okabe–Ito colour logic, Few/Tufte on charts.
 
 Data stays in your browser (localStorage). Export a JSON backup any time.
+
+## v4
+- New **Review** tab: habits (never miss twice), shutdown review, weekly review, active projects.
+- If-then plan before each focus session (implementation intentions).
+- Up to three active projects; paused categories hide from quick start.
+- Week can start on Monday, Sunday or Saturday.
+- Nudges can be dismissed for the day; Categories now live in Settings (or tap Edit on the chip row).

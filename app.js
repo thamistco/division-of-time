@@ -1,10 +1,10 @@
-/* Division of Time v3
+/* Division of Time v4
    A personal time tracker for a GP trainee and parent: plan vs actual with Google Calendar,
    training-week targets, focus sessions, shutdown and weekly reviews.
    Entries live in localStorage on this device; the Google token (1 hour) is kept locally. */
 (() => {
 'use strict';
-const KEY = 'dot.v1', TKEY = 'dot.gtok', VERSION = 3;
+const KEY = 'dot.v1', TKEY = 'dot.gtok', VERSION = 4;
 const CFG = window.DOT_CONFIG || {};
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -34,9 +34,9 @@ const GP_SET = [
   ['Results & letters', 'Brown', 'admin', 'max', 1.5, 'day', 'results, letters, admin, prescriptions, docman, email, paperwork'],
   ['Out of hours', 'Red', 'clinical', 'min', 4, 'month', 'ooh, out of hours, urgent care, 111, extended access'],
   ['Tutorial & teaching', 'Violet', 'learning', 'min', 2, 'week', 'tutorial, teaching, hdr, half day release, vts, debrief, balint'],
-  ['Self-study & exams', 'Sky', 'learning', 'min', 4, 'week', 'study, revision, akt, sca, exam, course, webinar, cpd, mock'],
+  ['Self-study & exams', 'Sky', 'learning', 'min', 4, 'week', 'study, revision, akt, sca, exam, course, webinar, cpd, mock', true],
   ['ePortfolio', 'Indigo', 'learning', '', 0, 'week', 'eportfolio, portfolio, ccr, learning log, cot, cbd, msf, arcp'],
-  ['Side projects', 'Gold', 'learning', '', 0, 'week', 'qaaf, coding, project, build, app'],
+  ['Side projects', 'Gold', 'learning', '', 0, 'week', 'qaaf, coding, project, build, app', true],
   ['Family time', 'Orange', 'family', 'min', 2, 'day', 'family, sam, alex, park, nursery, playgroup, birthday, dinner'],
   ['Exercise & walking', 'Teal', 'free', 'min', 0.5, 'day', 'gym, run, walk, swim, yoga, football, workout'],
   ['Rest & leisure', 'Magenta', 'free', '', 0, 'day', 'tv, film, read, relax, friends, mosque, prayer'],
@@ -44,7 +44,7 @@ const GP_SET = [
   ['Phone & social media', 'Slate', 'life', 'max', 1, 'day', 'social, youtube, instagram, scrolling'],
   ['Sleep', '#334155', 'sleep', 'min', 7, 'day', 'sleep, nap']
 ];
-const mkCat = ([name, col, kind, goalType, goal, period, keys]) => ({ id: uid(), name, color: col.startsWith('#') ? col : P(col), kind, goalType, goal, period, keys });
+const mkCat = ([name, col, kind, goalType, goal, period, keys, project]) => ({ id: uid(), name, color: col.startsWith('#') ? col : P(col), kind, goalType, goal, period, keys, project: !!project });
 
 let S = load();
 function load() {
@@ -54,7 +54,7 @@ function load() {
 function fix(s) {
   s.entries ||= []; s.notes ||= {}; s.weeks ||= {}; s.evMap ||= {}; s.gq ||= [];
   s.g = Object.assign({ on: false, show: ['primary'], write: false, writeCal: 'primary', cals: [] }, s.g || {});
-  s.settings = Object.assign({ focusLen: 50, notify: false, haptics: true, wake: '07:00', bed: '23:00', shutdown: '18:30', theme: 'system', ltft: 100, examName: '', examDate: '', lastCat: null, lastSeen: Date.now() }, s.settings || {});
+  s.settings = Object.assign({ focusLen: 50, notify: false, haptics: true, wake: '07:00', bed: '23:00', shutdown: '18:30', theme: 'system', weekStart: 1, ifThen: true, ifThenText: '', dismissed: {}, ltft: 100, examName: '', examDate: '', lastCat: null, lastSeen: Date.now() }, s.settings || {});
   const v = s.settings.v || (s.settings.v2 ? 2 : 1);
   if (v < 3) {
     // v1/v2 → v3: richer types, goal periods, new palette, GP trainee names for the old defaults
@@ -69,8 +69,12 @@ function fix(s) {
     }
     let at = s.cats.findIndex(c => c.name === 'Results & letters') + 1 || Math.min(2, s.cats.length);
     for (const t of GP_SET) if (['Out of hours', 'Tutorial & teaching', 'ePortfolio'].includes(t[0]) && !s.cats.some(c => c.name === t[0])) s.cats.splice(at++, 0, mkCat(t));
-    s.settings.v = VERSION;
   }
+  if (v < 4) {
+    // v4: active projects (cap of three) and paused categories
+    for (const c of s.cats) if (['Side projects', 'Self-study & exams'].includes(c.name)) c.project = true;
+  }
+  s.settings.v = VERSION;
   for (const c of s.cats) { c.period ||= 'day'; c.kind ||= 'clinical'; c.keys ??= ''; }
   return s;
 }
@@ -83,7 +87,8 @@ const kindOf = e => cat(e.catId).kind;
 const running = () => S.entries.find(e => e.end == null);
 const sod = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
 const addDays = (t, n) => { const d = new Date(t); d.setDate(d.getDate() + n); return d.getTime(); };
-const monday = t => addDays(sod(t), -((new Date(t).getDay() + 6) % 7));
+const monday = t => addDays(sod(t), -((new Date(t).getDay() - (S.settings.weekStart == null ? 1 : +S.settings.weekStart) + 7) % 7)); // start of the user's week (Monday by default)
+const live = () => S.cats.filter(c => !c.paused);
 const monthStart = t => { const d = new Date(sod(t)); d.setDate(1); return d.getTime(); };
 const monthEnd = t => { const d = new Date(monthStart(t)); d.setMonth(d.getMonth() + 1); return d.getTime(); };
 const ymd = t => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -156,11 +161,11 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { 
 
 /* ---------------- timer ---------------- */
 let selCat = S.settings.lastCat && S.cats.some(c => c.id === S.settings.lastCat) ? S.settings.lastCat : (S.cats[0]?.id ?? null);
-function start(catId = selCat, desc = $('#desc').value.trim(), focusMin = 0) {
+function start(catId = selCat, desc = $('#desc').value.trim(), focusMin = 0, ifThen = '') {
   stop(true);
   const now = Date.now();
   const e = { id: uid(), catId, desc, start: now, end: null };
-  if (focusMin) { e.focus = true; e.focusEnd = now + focusMin * MIN; }
+  if (focusMin) { e.focus = true; e.focusEnd = now + focusMin * MIN; if (ifThen) e.ifThen = ifThen; }
   S.entries.push(e);
   selCat = catId; S.settings.lastCat = catId; S.settings.guardAck = null; S.settings.focusDone = false;
   save(); buzz(10); announce(`Started ${cat(catId).name}`); renderAll();
@@ -177,9 +182,31 @@ $('#startBtn').onclick = () => running() ? stop() : start();
 $('#focusBtn').onclick = () => {
   const r = running();
   if (r && r.focus) { stop(); return; }
-  askNotify(); start(r ? r.catId : selCat, $('#desc').value.trim() || (r ? r.desc : ''), +S.settings.focusLen);
-  toast(`Focus for ${S.settings.focusLen} minutes. Phone face down, inbox closed.`);
+  if (S.settings.ifThen) { openFocusStart(); return; }
+  beginFocus(r ? r.catId : selCat, $('#desc').value.trim() || (r ? r.desc : ''), +S.settings.focusLen, '');
 };
+function beginFocus(catId, desc, len, ifThen) {
+  askNotify(); $('#desc').value = desc; start(catId, desc, len, ifThen);
+  toast(`Focus for ${len} minutes. Phone face down, inbox closed.`);
+}
+// implementation intention before a focus block (Gollwitzer & Sheeran 2006)
+let fsLen = 50;
+function openFocusStart() {
+  const r = running();
+  $('#fsDesc').value = $('#desc').value.trim() || (r ? r.desc || '' : '');
+  $('#fsCat').innerHTML = live().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  $('#fsCat').value = r ? r.catId : selCat;
+  fsLen = +S.settings.focusLen; $$('#fsLen button').forEach(b => b.classList.toggle('active', +b.dataset.m === fsLen));
+  $('#fsIf').value = S.settings.ifThenText || '';
+  $('#focusStart').showModal(); setTimeout(() => $('#fsDesc').focus(), 50);
+}
+$('#fsLen').onclick = e => { const b = e.target.closest('button'); if (!b) return; fsLen = +b.dataset.m; $$('#fsLen button').forEach(x => x.classList.toggle('active', x === b)); };
+$('#fsGo').onclick = () => {
+  const it = $('#fsIf').value.trim() || $('#fsIf').placeholder;
+  S.settings.ifThenText = $('#fsIf').value.trim(); S.settings.focusLen = fsLen;
+  $('#focusStart').close(); beginFocus($('#fsCat').value, $('#fsDesc').value.trim(), fsLen, it);
+};
+$('#focusStart').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); $('#fsGo').click(); } });
 $('#desc').addEventListener('keydown', e => {
   if (e.key === 'Escape') { $('#desc').blur(); return; }
   if (e.key !== 'Enter') return;
@@ -288,10 +315,11 @@ function renderTracker() {
   $('#catBtn .dot').style.background = colour(c);
   $('#catBtn .lbl').textContent = c.name;
   if (document.activeElement !== $('#desc') && r) $('#desc').value = r.desc || '';
-  $('#quick').innerHTML = S.cats.map((k, i) => `<button class="chip ${r && r.catId === k.id ? 'on' : ''}" style="--c:${colour(k)}" data-id="${k.id}" title="${r && r.catId === k.id ? 'Stop' : 'Start'} ${esc(k.name)}${i < 9 ? ' · ' + (i + 1) : ''}" aria-pressed="${!!(r && r.catId === k.id)}"><span class="dot" style="background:${colour(k)}"></span>${esc(k.name)}</button>`).join('');
+  $('#quick').innerHTML = live().map((k, i) => `<button class="chip ${r && r.catId === k.id ? 'on' : ''}" style="--c:${colour(k)}" data-id="${k.id}" title="${r && r.catId === k.id ? 'Stop' : 'Start'} ${esc(k.name)}${i < 9 ? ' · ' + (i + 1) : ''}" aria-pressed="${!!(r && r.catId === k.id)}"><span class="dot" style="background:${colour(k)}"></span>${esc(k.name)}${k.project ? '<span class="proj" title="Active project">★</span>' : ''}</button>`).join('') + '<button class="chip ghost manage" id="manageCats" title="Edit categories">Edit</button>';
   const prev = [...S.entries].filter(e => e.catId === c.id && e.next && e.end).sort((a, b) => b.end - a.end)[0];
   const ns = $('#nextStep');
-  if (prev && Date.now() - prev.end < 7 * DAY) { ns.hidden = false; ns.textContent = `↪ Last time you left off: ${prev.next}`; } else ns.hidden = true;
+  if (r && r.focus && r.ifThen) { ns.hidden = false; ns.textContent = `If distracted: ${r.ifThen}`; }
+  else if (prev && Date.now() - prev.end < 7 * DAY) { ns.hidden = false; ns.textContent = `↪ Last time you left off: ${prev.next}`; } else ns.hidden = true;
   $('#dateLine').textContent = fmtDay(Date.now());
   // exam countdown
   const ep = $('#examPill');
@@ -303,6 +331,7 @@ function renderTracker() {
   } else ep.hidden = true;
 }
 $('#quick').onclick = e => {
+  if (e.target.closest('#manageCats')) { switchTab('categories'); return; }
   const b = e.target.closest('.chip'); if (!b) return;
   const r = running();
   if (r && r.catId === b.dataset.id) { stop(); return; }
@@ -534,15 +563,71 @@ function renderDay() {
     return `<li><span class="dot" style="background:${colour(c)}"></span><div class="d"><b><span class="x">${esc(e.desc || c.name)}</span>${e.focus ? '<span class="badge">focus' + (e.quality ? ' ' + e.quality + '/5' : '') + '</span>' : ''}${e.evId ? '<span class="badge">calendar</span>' : ''}</b><small>${esc(c.name)} · ${fmtTime(e.start)}–${e.end ? fmtTime(e.end) : '<span class="live">now</span>'}</small></div><span class="dur" data-live="${e.end ? '' : e.id}" title="${fmtTime(e.start)}–${e.end ? fmtTime(e.end) : 'now'}">${fmtHM(dur)}</span><span class="act"><button class="icon ghost" data-act="resume" data-id="${e.id}" title="Start this again" aria-label="Start this again"><svg class="i"><use href="#i-play"/></svg></button><button class="icon ghost" data-act="edit" data-id="${e.id}" title="Edit" aria-label="Edit entry"><svg class="i"><use href="#i-edit"/></svg></button></span></li>`;
   }).join('') : '<li class="empty"><b>No entries on this day</b>Fill gaps on the timeline, or use + Add time.</li>';
 
-  const n = S.notes[ymd(a)] || {};
+}
+
+/* ---------------- Review tab: habits, shutdown, weekly review, projects ---------------- */
+let rvDay = sod(Date.now()), wrOff = 0;
+$('#rvPrev').onclick = () => { rvDay = addDays(rvDay, -1); renderReview(); };
+$('#rvNext').onclick = () => { if (rvDay < sod(Date.now())) { rvDay = addDays(rvDay, 1); renderReview(); } };
+$('#wrSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; wrOff = +b.dataset.w; renderReview(); };
+// "never miss twice" (Clear): daily at-least goals become habits; 1 met, 0 missed, -1 before tracking began, 2 today in progress
+function habits() {
+  const today = sod(Date.now()), first = S.entries.filter(real).reduce((m, e) => Math.min(m, sod(e.start)), Infinity);
+  const L = live().filter(c => c.goalType === 'min' && c.goal > 0 && (c.period || 'day') === 'day').map(c => ({ name: c.name, col: colour(c), test: d => catTime(d, addDays(d, 1), c.id) >= c.goal * H }));
+  L.push({ name: 'Shutdown review', col: 'var(--accent)', test: d => !!(S.notes[ymd(d)] || {}).rating });
+  return L.map(h => {
+    const days = []; for (let i = 13; i >= 0; i--) { const d = addDays(today, -i); days.push(d < first ? -1 : h.test(d) ? 1 : i === 0 ? 2 : 0); }
+    let streak = 0; for (let i = days[13] === 1 ? 13 : 12; i >= 0 && days[i] === 1; i--) streak++;
+    return { ...h, days, streak };
+  });
+}
+function renderHabits() {
+  const hs = habits(), today = sod(Date.now());
+  const head = Array.from({ length: 14 }, (_, i) => fmtDay(addDays(today, i - 13), { weekday: 'narrow' }));
+  $('#habitSub').textContent = 'last 14 days';
+  $('#habits').innerHTML = `<div class="hab head"><span></span><div class="cells">${head.map((d, i) => `<b class="${i === 13 ? 'now' : ''}">${d}</b>`).join('')}</div><span>Streak</span></div>` + hs.map(h => {
+    const twice = h.days[12] === 0 && h.days[11] === 0 && h.days[13] !== 1, once = h.days[12] === 0 && h.days[13] !== 1;
+    const st = twice ? '<span class="st bad">Missed twice: restart small today</span>' : once ? '<span class="st warn">Don’t miss twice</span>' : '';
+    return `<div class="hab"><span class="n"><span class="dot" style="background:${h.col}"></span>${esc(h.name)}${st}</span><div class="cells">${h.days.map((v, i) => `<i class="c${v}" style="--c:${h.col}" title="${fmtDay(addDays(today, i - 13), { weekday: 'short', day: 'numeric', month: 'short' })} · ${['missed', 'done', 'today'][v] || 'before tracking'}"></i>`).join('')}</div><span class="streak num">${h.streak ? h.streak + 'd' : '–'}</span></div>`;
+  }).join('') + '<p class="muted small">Habits come from your daily “at least” goals. Missing once is normal; the aim is never twice in a row.</p>';
+}
+function renderShutdown() {
+  const today = sod(Date.now());
+  $('#shutSub').textContent = `· ${rvDay === today ? 'today' : rvDay === addDays(today, -1) ? 'yesterday' : fmtDay(rvDay, { weekday: 'short', day: 'numeric', month: 'short' })}`;
+  $('#rvNext').disabled = rvDay >= today;
+  const n = S.notes[ymd(rvDay)] || {};
   $('#rating').innerHTML = ['Rough', 'Meh', 'OK', 'Good', 'Great'].map((f, i) => `<button role="radio" aria-checked="${n.rating === i + 1}" class="${n.rating === i + 1 ? 'on' : ''}" data-r="${i + 1}">${f}</button>`).join('');
   $('#control').innerHTML = [1, 2, 3, 4, 5].map(i => `<button role="radio" aria-checked="${n.control === i}" class="${n.control === i ? 'on' : ''}" data-c="${i}" title="${['Not at all', 'A little', 'Somewhat', 'Mostly', 'Completely'][i - 1]}">${i}</button>`).join('');
   $('#ccr').value = n.ccr || 0;
-  const ms = monthStart(a), me = monthEnd(a); let mc = 0; for (const [k, v] of Object.entries(S.notes)) { const t = new Date(k + 'T00:00').getTime(); if (t >= ms && t < me) mc += v.ccr || 0; }
+  const ms = monthStart(rvDay), me = monthEnd(rvDay); let mc = 0; for (const [k, v] of Object.entries(S.notes)) { const t = new Date(k + 'T00:00').getTime(); if (t >= ms && t < me) mc += v.ccr || 0; }
   $('#ccrMonth').textContent = `${mc} this month · aim ${Math.round(3 * ltft() * 10) / 10}`;
   if (document.activeElement !== $('#note')) $('#note').value = n.text || '';
   if (document.activeElement !== $('#plan')) $('#plan').value = n.plan || '';
   $('#planToCal').hidden = !(gReady() && (n.plan || '').trim());
+}
+function renderProjects() {
+  const ps = S.cats.filter(c => c.project && !c.paused), a = monday(Date.now()), b = addDays(a, 7);
+  $('#projSub').textContent = `· ${ps.length} of 3`;
+  $('#projects').innerHTML = ps.length ? ps.map(c => {
+    const v = catTime(a, b, c.id), last = [...S.entries].filter(e => e.catId === c.id && e.end).sort((x, y) => y.end - x.end)[0];
+    const nx = last && last.next ? `Next: ${esc(last.next)}` : last ? `Last worked on ${fmtDay(last.end, { weekday: 'short', day: 'numeric', month: 'short' })}` : 'Not started yet';
+    return `<div class="proj-row"><span class="dot" style="background:${colour(c)}"></span><div class="d"><b>${esc(c.name)}</b><small>${nx}</small></div><span class="num">${fmtHM(v)}<small class="muted"> this week</small></span><button class="icon ghost" data-start="${c.id}" aria-label="Start ${esc(c.name)}" title="Start"><svg class="i"><use href="#i-play"/></svg></button></div>`;
+  }).join('') + (ps.length >= 3 ? '<p class="muted small">Three active projects is the cap. Finish or pause one before starting another.</p>' : '<p class="muted small">Up to three at a time. Fewer projects in progress means each one actually moves.</p>')
+    : '<div class="empty"><b>No active projects</b>Mark up to three categories as projects, such as SCA prep or Qaaf.</div>';
+}
+$('#projects').onclick = e => { const b = e.target.closest('[data-start]'); if (b) { $('#desc').value = ''; start(b.dataset.start, ''); scrollTo({ top: 0 }); } };
+$('#projEdit').onclick = () => switchTab('categories');
+function reviewDue() {
+  const now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes(), today = sod(Date.now()), wd = now.getDay();
+  const day = nowMin > hm(S.settings.shutdown) && !(S.notes[ymd(today)] || {}).rating;
+  const wk = ((wd === 5 && nowMin > hm(S.settings.shutdown)) || wd === 0 || wd === 6) && !(S.weeks[ymd(monday(today))] || {}).wins;
+  return day || wk;
+}
+function renderReview() {
+  renderHabits(); renderShutdown();
+  $$('#wrSeg button').forEach(b => b.classList.toggle('active', +b.dataset.w === wrOff));
+  renderWeekReview(addDays(monday(Date.now()), 7 * wrOff));
+  renderProjects();
 }
 
 function goalWindow(period, day) {
@@ -649,13 +734,18 @@ function renderNudges(day, d) {
     if (pu.length) out.push(['', '📅', `${pu.length} calendar event${pu.length > 1 ? 's' : ''} from today ${pu.length > 1 ? 'aren’t' : 'isn’t'} logged yet.`, 'Log', () => $('#logEvents').click()]);
     if (d.untracked > 2 * H) out.push(['warn', '◌', `${fmtHM(d.untracked)} of today is untracked. Fill the striped gaps while you still remember.`]);
     if (nowMin > 14 * 60 && d.deep < 30 * MIN && nowMin < sd) out.push(['', '🎯', 'No deep-work block yet today. One 50-minute focus session is enough to move the needle.', 'Focus', () => $('#focusBtn').click()]);
-    if (nowMin > sd + 60 && !(S.notes[ymd(day)] || {}).rating) out.push(['', '📝', 'Close the day: rate it, list loose ends, set tomorrow’s one big thing.', 'Review', () => document.querySelector('#rating').scrollIntoView({ block: 'center' })]);
+    if (nowMin > sd + 60 && !(S.notes[ymd(day)] || {}).rating) out.push(['', '📝', 'Close the day: rate it, list loose ends, set tomorrow’s one big thing.', 'Review', () => { rvDay = day; switchTab('review'); }]);
+    const twice = habits().filter(h => h.days[12] === 0 && h.days[13] !== 1);
+    if (twice.length) out.push(['warn', '🔁', `Missed yesterday: ${twice.map(h => esc(h.name)).join(', ')}. Never miss twice; even ten minutes today keeps it going.`, 'Habits', () => switchTab('review')]);
     if (nowMin > 19 * 60 && d.free < H) out.push(['warn', '🌿', 'Little family or free time today. Wellbeing tends to dip below about 2 hours, so protect some of this evening.']);
     if (wd === 1 && nowMin < 12 * 60) out.push(['good', '✨', 'Fresh week. What one thing would make it a good one? Put it in your calendar now.']);
-    if ((wd === 5 && nowMin > sd) || wd === 0) { const k = ymd(monday(day)); if (!(S.weeks[k] || {}).wins) out.push(['', '🗓️', 'Weekly review: five minutes on wins, what to drop and next week’s top three.', 'Open', () => { switchTab('reports'); setTimeout(() => $('#weekReview').scrollIntoView({ block: 'start' }), 50); }]); }
+    if ((wd === 5 && nowMin > sd) || wd === 0) { const k = ymd(monday(day)); if (!(S.weeks[k] || {}).wins) out.push(['', '🗓️', 'Weekly review: five minutes on wins, what to drop and next week’s top three.', 'Open', () => { wrOff = 0; switchTab('review'); setTimeout(() => $('#weekReview').scrollIntoView({ block: 'start' }), 50); }]); }
   }
-  $('#nudges').innerHTML = out.slice(0, 3).map(([k, i, t, btn], j) => `<div class="nudge ${k}"><span>${t}</span>${btn ? `<button class="sm" data-n="${j}">${btn}</button>` : ''}</div>`).join('');
-  $$('#nudges [data-n]').forEach(b => b.onclick = out[+b.dataset.n][4]);
+  const dk = ymd(day), gone = (S.settings.dismissed || {})[dk] || [];
+  const show = out.filter(n => !gone.includes(n[1])).slice(0, 3);
+  $('#nudges').innerHTML = show.map(([k, i, t, btn], j) => `<div class="nudge ${k}"><span>${t}</span>${btn ? `<button class="sm" data-n="${j}">${btn}</button>` : ''}<button class="icon ghost x" data-x="${j}" aria-label="Dismiss" title="Dismiss for today"><svg class="i"><use href="#i-x"/></svg></button></div>`).join('');
+  $$('#nudges [data-n]').forEach(b => b.onclick = show[+b.dataset.n][4]);
+  $$('#nudges [data-x]').forEach(b => b.onclick = () => { S.settings.dismissed = { [dk]: [...gone, show[+b.dataset.x][1]] }; save(); renderDay(); });
 }
 
 $('#entries').onclick = e => {
@@ -664,11 +754,11 @@ $('#entries').onclick = e => {
   if (b.dataset.act === 'edit') openEntry(en.id);
   else { $('#desc').value = en.desc || ''; start(en.catId, en.desc || ''); scrollTo({ top: 0 }); }
 };
-const noteSet = (k, v) => { const d = ymd(viewDay); S.notes[d] = { ...(S.notes[d] || {}), [k]: v }; save(); };
-$('#rating').onclick = e => { const b = e.target.closest('button'); if (!b) return; noteSet('rating', +b.dataset.r); buzz(8); renderDay(); };
-$('#control').onclick = e => { const b = e.target.closest('button'); if (!b) return; noteSet('control', +b.dataset.c); buzz(8); renderDay(); };
-$('#ccrPlus').onclick = () => { noteSet('ccr', ((S.notes[ymd(viewDay)] || {}).ccr || 0) + 1); buzz(8); renderDay(); };
-$('#ccrMinus').onclick = () => { noteSet('ccr', Math.max(0, ((S.notes[ymd(viewDay)] || {}).ccr || 0) - 1)); renderDay(); };
+const noteSet = (k, v) => { const d = ymd(rvDay); S.notes[d] = { ...(S.notes[d] || {}), [k]: v }; save(); };
+$('#rating').onclick = e => { const b = e.target.closest('button'); if (!b) return; noteSet('rating', +b.dataset.r); buzz(8); renderReview(); };
+$('#control').onclick = e => { const b = e.target.closest('button'); if (!b) return; noteSet('control', +b.dataset.c); buzz(8); renderReview(); };
+$('#ccrPlus').onclick = () => { noteSet('ccr', ((S.notes[ymd(rvDay)] || {}).ccr || 0) + 1); buzz(8); renderReview(); };
+$('#ccrMinus').onclick = () => { noteSet('ccr', Math.max(0, ((S.notes[ymd(rvDay)] || {}).ccr || 0) - 1)); renderReview(); };
 $('#note').addEventListener('input', () => noteSet('text', $('#note').value));
 $('#plan').addEventListener('input', () => { noteSet('plan', $('#plan').value); $('#planToCal').hidden = !(gReady() && $('#plan').value.trim()); });
 $('#planToCal').onclick = async () => {
@@ -678,7 +768,7 @@ $('#planToCal').onclick = async () => {
   if (m1) { h = +m1[1]; mi = +m1[2]; ap = (m1[3] || '').toLowerCase(); } else if (m2) { h = +m2[1]; ap = (m2[2] || '').toLowerCase(); }
   if (ap === 'pm' && h < 12) h += 12; if (ap === 'am' && h === 12) h = 0;
   if (h > 23 || mi > 59) { h = 9; mi = 0; }
-  const day = addDays(viewDay, 1), s = day + h * H + mi * MIN;
+  const day = addDays(rvDay, 1), s = day + h * H + mi * MIN;
   const cal = S.g.cals.find(c => c.primary)?.id || 'primary';
   try {
     await gApi(`/calendars/${encodeURIComponent(cal)}/events`, { method: 'POST', body: JSON.stringify({ summary: '🎯 ' + text.replace(/^i will\s*/i, ''), description: 'Your one big thing, set in your Division of Time shutdown review.', start: { dateTime: new Date(s).toISOString() }, end: { dateTime: new Date(s + H).toISOString() }, reminders: { useDefault: true } }) });
@@ -775,8 +865,8 @@ function renderReports() {
 
   renderTraining(a, b, nd);
   const isWeek = range === 'week' || range === 'lastweek';
-  $('#wkCard').hidden = !isWeek; $('#weekReview').hidden = !isWeek;
-  if (isWeek) { renderWeekGrid(a); renderWeekReview(a); }
+  $('#wkCard').hidden = !isWeek;
+  if (isWeek) renderWeekGrid(a);
 
   // hours per day, stacked by category (awake only)
   const W = Math.max(300, Math.round($('#bars').getBoundingClientRect().width) || 700), HH = 220, pad = 28, n = days.length, bw = (W - pad) / n;
@@ -835,7 +925,7 @@ function renderTraining(a, b, nd) {
     cell('OOH this month', fmtH(ooh), `typical ${fmtH(4 * L * H)} a month`, ooh / (4 * L * H), colour({ color: P('Red') }));
 }
 function renderWeekGrid(a) {
-  const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], used = new Set();
+  const names = Array.from({ length: 7 }, (_, d) => fmtDay(addDays(a, d), { weekday: 'short' })), used = new Set();
   let html = '';
   for (let d = 0; d < 7; d++) {
     const day = addDays(a, d); html += `<span>${names[d]}</span>`;
@@ -919,7 +1009,7 @@ let editCat = null, pickCol = null;
 function renderCats() {
   $('#catList').innerHTML = S.cats.map((c, i) => {
     const g = c.goalType && c.goal ? ` · ${c.goalType === 'min' ? 'at least' : 'at most'} ${c.goal}h a ${c.period || 'day'}` : '';
-    return `<li><span class="sw" style="--c:${colour(c)}"></span><span class="n">${esc(c.name)}<small>${KINDS[c.kind] || ''}${g}</small></span>${i ? `<button class="icon ghost" data-up="${c.id}" aria-label="Move ${esc(c.name)} up" title="Move up">↑</button>` : ''}<button class="sm" data-id="${c.id}">Edit</button></li>`;
+    return `<li class="${c.paused ? 'paused' : ''}"><span class="sw" style="--c:${colour(c)}"></span><span class="n">${esc(c.name)}${c.project ? ' <span class="badge">project</span>' : ''}${c.paused ? ' <span class="badge muted-b">paused</span>' : ''}<small>${KINDS[c.kind] || ''}${g}</small></span>${i ? `<button class="icon ghost" data-up="${c.id}" aria-label="Move ${esc(c.name)} up" title="Move up">↑</button>` : ''}<button class="sm" data-id="${c.id}">Edit</button></li>`;
   }).join('');
 }
 $('#catList').onclick = e => {
@@ -944,13 +1034,16 @@ function openCat(id) {
   $('#cGoal').value = editCat?.goal || '';
   $('#cPeriod').value = editCat?.period || 'day';
   $('#cKeys').value = editCat?.keys || '';
+  $('#cProject').checked = !!editCat?.project; $('#cPaused').checked = !!editCat?.paused; $('#cErr').textContent = '';
   $('#cDel').hidden = !editCat;
   $('#catDlg').showModal();
 }
 $('#cSwatches').onclick = e => { const b = e.target.closest('[data-col]'); if (!b) return; pickCol = b.dataset.col; $$('#cSwatches button').forEach(x => x.classList.toggle('on', x === b)); };
 $('#cSave').onclick = () => {
   const name = $('#cName').value.trim(); if (!name) return $('#cName').focus();
-  const d = { name, color: pickCol, kind: $('#cKind').value, goalType: $('#cGoalType').value, goal: +$('#cGoal').value || 0, period: $('#cPeriod').value, keys: $('#cKeys').value.trim() };
+  const d = { name, color: pickCol, kind: $('#cKind').value, goalType: $('#cGoalType').value, goal: +$('#cGoal').value || 0, period: $('#cPeriod').value, keys: $('#cKeys').value.trim(), project: $('#cProject').checked, paused: $('#cPaused').checked };
+  if (d.project && !d.paused && S.cats.filter(c => c !== editCat && c.project && !c.paused).length >= 3) { $('#cErr').textContent = 'You already have three active projects. Pause or finish one first: fewer at once means each one moves.'; buzz([8, 40, 8]); return; }
+  if (d.paused && running()?.catId === editCat?.id) stop(true);
   if (editCat) Object.assign(editCat, d); else S.cats.push({ id: uid(), ...d });
   save(); $('#catDlg').close(); renderAll();
 };
@@ -967,6 +1060,7 @@ function renderSettings() {
   $('#notifyOn').checked = !!S.settings.notify; $('#hapticOn').checked = !!S.settings.haptics;
   for (const k of ['wake', 'bed', 'shutdown', 'examName', 'examDate']) if (document.activeElement !== $('#' + k)) $('#' + k).value = S.settings[k] || '';
   $('#ltft').value = String(S.settings.ltft || 100);
+  $('#weekStart').value = String(S.settings.weekStart ?? 1); $('#ifThenOn').checked = !!S.settings.ifThen;
   $$('#themeSeg button').forEach(b => b.classList.toggle('active', b.dataset.t === (S.settings.theme || 'system')));
 }
 $('#focusLen').onchange = e => { S.settings.focusLen = +e.target.value; save(); tick(); };
@@ -974,6 +1068,8 @@ $('#notifyOn').onchange = e => { S.settings.notify = e.target.checked; save(); i
 $('#hapticOn').onchange = e => { S.settings.haptics = e.target.checked; save(); buzz(10); };
 for (const k of ['wake', 'bed', 'shutdown']) $('#' + k).onchange = e => { if (e.target.value) S.settings[k] = e.target.value; save(); renderDay(); };
 for (const k of ['examName', 'examDate']) $('#' + k).onchange = e => { S.settings[k] = e.target.value.trim(); save(); renderTracker(); };
+$('#weekStart').onchange = e => { S.settings.weekStart = +e.target.value; save(); renderAll(); };
+$('#ifThenOn').onchange = e => { S.settings.ifThen = e.target.checked; save(); };
 $('#ltft').onchange = e => { S.settings.ltft = +e.target.value; save(); renderAll(); };
 $('#themeSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.settings.theme = b.dataset.t; save(); applyTheme(); renderAll(); };
 function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
@@ -1002,9 +1098,9 @@ function commands() {
   const r = running(), L = [];
   if (r) L.push(['Stop timer', () => stop(), 'Space']);
   L.push([r?.focus ? 'End focus session' : `Start a ${S.settings.focusLen}-minute focus session`, () => $('#focusBtn').click(), 'F']);
-  S.cats.forEach((c, i) => L.push([`Start ${c.name}`, () => { $('#desc').value = ''; start(c.id, ''); }, i < 9 ? String(i + 1) : '', colour(c)]));
+  live().forEach((c, i) => L.push([`Start ${c.name}`, () => { $('#desc').value = ''; start(c.id, ''); }, i < 9 ? String(i + 1) : '', colour(c)]));
   L.push(['Add past time', () => openEntry(null), 'A'], ['Go to today', () => { switchTab('today'); viewDay = sod(Date.now()); renderDay(); }], ['Previous day', () => { switchTab('today'); goDay(-1); }, '←'],
-    ['Insights', () => switchTab('reports')], ['Weekly review', () => { switchTab('reports'); range = 'week'; renderReports(); setTimeout(() => $('#weekReview').scrollIntoView(), 50); }],
+    ['Shutdown review', () => { rvDay = sod(Date.now()); switchTab('review'); }, 'R'], ['Habits', () => switchTab('review')], ['Insights', () => switchTab('reports')], ['Weekly review', () => { wrOff = 0; switchTab('review'); setTimeout(() => $('#weekReview').scrollIntoView(), 50); }],
     ['Categories', () => switchTab('categories')], ['Settings', () => switchTab('settings')]);
   if (gReady()) L.push(['Log today’s past calendar events', () => { switchTab('today'); viewDay = sod(Date.now()); renderDay(); $('#logEvents').click(); }]);
   else L.push(['Connect Google Calendar', gConnect]);
@@ -1032,10 +1128,14 @@ $('#cmd').addEventListener('click', e => { if (e.target.id === 'cmd') $('#cmd').
 
 /* ---------------- tabs + keys ---------------- */
 function switchTab(name) {
+  const jump = name === 'categories' ? '#catCard' : null; if (jump) name = 'settings';
   $$('.tabs button').forEach(x => { const on = x.dataset.tab === name; x.classList.toggle('active', on); x.setAttribute('aria-selected', on); });
   $$('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
   if (name === 'reports') renderReports();
   if (name === 'today') { scrolledFor = null; renderDay(); }
+  if (name === 'review') renderReview();
+  if (jump) setTimeout(() => $(jump).scrollIntoView({ block: 'start' }), 30);
+  else if (scrollY > 200) scrollTo({ top: 0 });
 }
 $$('.tabs button').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
 document.addEventListener('keydown', e => {
@@ -1043,19 +1143,20 @@ document.addEventListener('keydown', e => {
   if (e.target.matches('input,textarea,select') || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('dialog[open]')) return;
   const k = e.key;
   if (k === ' ' || k === 's') { e.preventDefault(); running() ? stop() : start(); }
-  else if (k === 'f') $('#focusBtn').click();
+  else if (k === 'f') { e.preventDefault(); $('#focusBtn').click(); }
+  else if (k === 'r') { rvDay = sod(Date.now()); switchTab('review'); }
   else if (k === 'n') { e.preventDefault(); $('#desc').focus(); }
   else if (k === 'a') { e.preventDefault(); openEntry(null); }
   else if (k === '/') { e.preventDefault(); openCmd(); }
   else if (k === '?') $('#keysDlg').showModal();
   else if (k === 'ArrowLeft' && $('#tab-today').classList.contains('active')) goDay(-1);
   else if (k === 'ArrowRight' && $('#tab-today').classList.contains('active')) goDay(1);
-  else if (/^[1-9]$/.test(k) && S.cats[+k - 1]) { const id = S.cats[+k - 1].id, r = running(); if (r && r.catId === id) stop(); else { $('#desc').value = ''; start(id, ''); } }
+  else if (/^[1-9]$/.test(k) && live()[+k - 1]) { const id = live()[+k - 1].id, r = running(); if (r && r.catId === id) stop(); else { $('#desc').value = ''; start(id, ''); } }
 });
 // close dialogs on backdrop click
 $$('dialog').forEach(d => d.addEventListener('click', e => { if (e.target === d && d.id !== 'guardDlg') d.close(); }));
 
-function renderAll() { renderTracker(); renderG(); renderDay(); renderCats(); renderSettings(); if ($('#tab-reports').classList.contains('active')) renderReports(); tick(); }
+function renderAll() { renderTracker(); renderG(); renderDay(); renderCats(); renderSettings(); if ($('#tab-reports').classList.contains('active')) renderReports(); if ($('#tab-review').classList.contains('active')) renderReview(); $('#reviewDot').hidden = !reviewDue(); tick(); }
 applyTheme(); renderAll(); guard();
 let lastToday = sod(Date.now());
 setInterval(() => {
@@ -1073,5 +1174,5 @@ addEventListener('online', () => { gFlush(); });
 let rsz; addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if ($('#tab-reports').classList.contains('active')) renderReports(); }, 200); });
 if (gReady()) gLoadCals().then(() => { gFlush(); renderAll(); });
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
-window.__dot = { get S() { return S; }, G, renderAll, start, stop, switchTab, guard, openCmd };
+window.__dot = { get S() { return S; }, G, renderAll, start, stop, switchTab, guard, openCmd, habits };
 })();

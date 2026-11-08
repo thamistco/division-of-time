@@ -29,6 +29,8 @@
   <symbol id="i-left" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></symbol>
   <symbol id="i-right" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></symbol>
   <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></symbol>
+  <symbol id="i-review" viewBox="0 0 24 24"><path d="M5 4.5h11l3 3V19.5H5z"/><path d="M8.5 12l2.2 2.2L15.5 9.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></symbol>
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></symbol>
 </svg>
 <div class="app">
@@ -62,8 +64,8 @@
 
 <nav class="tabs" role="tablist">
   <button role="tab" data-tab="today" class="active"><svg class="i"><use href="#i-today"/></svg><span>Today</span></button>
+  <button role="tab" data-tab="review"><svg class="i"><use href="#i-review"/></svg><span>Review</span><i class="tabdot" id="reviewDot" hidden></i></button>
   <button role="tab" data-tab="reports"><svg class="i"><use href="#i-chart"/></svg><span>Insights</span></button>
-  <button role="tab" data-tab="categories"><svg class="i"><use href="#i-cats"/></svg><span>Categories</span></button>
   <button role="tab" data-tab="settings"><svg class="i"><use href="#i-set"/></svg><span>Settings</span></button>
 </nav>
 
@@ -103,8 +105,15 @@
     <ul class="entries" id="entries"></ul>
   </div>
 
-  <div class="card">
-    <h3>Shutdown review <small>· 3 minutes to close the day</small></h3>
+</section>
+
+<section id="tab-review" class="tab">
+  <div class="card" id="habitCard">
+    <div class="row-h"><h3>Habits <small>· never miss twice</small></h3><span class="muted small" id="habitSub"></span></div>
+    <div id="habits"></div>
+  </div>
+  <div class="card" id="shutCard">
+    <div class="row-h"><h3>Shutdown review <small id="shutSub">· 3 minutes to close the day</small></h3><div class="row-btns"><button class="icon outline sm" id="rvPrev" aria-label="Previous day"><svg class="i"><use href="#i-left"/></svg></button><button class="icon outline sm" id="rvNext" aria-label="Next day"><svg class="i"><use href="#i-right"/></svg></button></div></div>
     <div class="review-grid">
       <div>
         <label class="lab">How was today?</label>
@@ -122,6 +131,19 @@
         <button class="sm" id="planToCal" style="margin-top:8px" hidden>Add to Google Calendar</button>
       </div>
     </div>
+  </div>
+  <div class="card" id="weekReview">
+    <div class="row-h"><h3>Weekly review <small id="wrSub"></small></h3><div class="seg sm" id="wrSeg"><button data-w="0" class="active">This week</button><button data-w="-1">Last week</button></div></div>
+    <div class="review-grid">
+      <div><label class="lab" for="wrWins">Wins this week</label><textarea id="wrWins" rows="2"></textarea>
+        <label class="lab" for="wrDrop">What to drop, delegate or batch</label><textarea id="wrDrop" rows="2"></textarea></div>
+      <div><label class="lab" for="wrNext">Next week's top three</label><textarea id="wrNext" rows="2"></textarea>
+        <label class="lab" for="wrAdv">One big and one little adventure</label><input type="text" id="wrAdv" placeholder="Big: Saturday at Drusillas · Little: Tuesday ice cream on the seafront"></div>
+    </div>
+  </div>
+  <div class="card" id="projCard">
+    <div class="row-h"><h3>Active projects <small id="projSub"></small></h3><button class="sm" id="projEdit">Manage</button></div>
+    <div id="projects"></div>
   </div>
 </section>
 
@@ -147,28 +169,17 @@
       <table class="tbl" id="rTable"><thead><tr><th>Category</th><th>Hours</th><th class="hide-m">Share</th><th>Goal</th></tr></thead><tbody></tbody></table></div>
     <div class="card"><h3>When you focus best <small>· last 28 days</small></h3><div class="heat" id="heat"></div><p class="muted small" id="heatNote"></p></div>
   </div>
-  <div class="card" id="weekReview">
-    <h3>Weekly review <small id="wrSub"></small></h3>
-    <div class="review-grid">
-      <div><label class="lab" for="wrWins">Wins this week</label><textarea id="wrWins" rows="2"></textarea>
-        <label class="lab" for="wrDrop">What to drop, delegate or batch</label><textarea id="wrDrop" rows="2"></textarea></div>
-      <div><label class="lab" for="wrNext">Next week's top three</label><textarea id="wrNext" rows="2"></textarea>
-        <label class="lab" for="wrAdv">One big and one little adventure</label><input type="text" id="wrAdv" placeholder="Big: Saturday at Drusillas · Little: Tuesday ice cream on the seafront"></div>
-    </div>
-  </div>
   <div class="card"><h3>Top activities</h3>
     <table class="tbl" id="rDesc"><thead><tr><th>Activity</th><th>Category</th><th>Hours</th></tr></thead><tbody></tbody></table></div>
 </section>
 
-<section id="tab-categories" class="tab">
-  <div class="card">
+
+<section id="tab-settings" class="tab">
+  <div class="card" id="catCard">
     <div class="row-h"><h3>Categories</h3><div class="row-btns"><button class="sm" id="gpTemplate">Add GP trainee set</button><button class="primary sm" id="addCat">+ New</button></div></div>
     <p class="muted small">Type tells the app what counts as clinical, admin, learning, family or free time. Goals can be daily, weekly or monthly; "at least" for what you want more of, "at most" for what to keep in check.</p>
     <ul class="catlist" id="catList"></ul>
   </div>
-</section>
-
-<section id="tab-settings" class="tab">
   <div class="card"><h3>Google Calendar</h3><div id="gBox"></div></div>
   <div class="card">
     <h3>Your week</h3>
@@ -183,11 +194,16 @@
       <label class="field">Next exam <input type="text" id="examName" placeholder="SCA"></label>
       <label class="field">Exam date <input type="date" id="examDate"></label>
     </div>
+    <div class="three">
+      <label class="field">Week starts on
+        <select id="weekStart"><option value="1">Monday</option><option value="0">Sunday</option><option value="6">Saturday</option></select></label>
+    </div>
   </div>
   <div class="card">
     <h3>Focus &amp; reminders</h3>
     <label class="field">Focus session length
       <select id="focusLen"><option value="25">25 min</option><option value="50">50 min</option><option value="90">90 min</option></select></label>
+    <label class="check"><input type="checkbox" id="ifThenOn"> Ask for an if-then plan before each focus session</label>
     <label class="check"><input type="checkbox" id="notifyOn"> Notify me when a focus session ends, a timer passes 3 hours, or nothing's tracked for 30 waking minutes</label>
     <label class="check"><input type="checkbox" id="hapticOn"> Haptic feedback on start and stop (Android)</label>
   </div>
@@ -244,6 +260,9 @@
       <label class="field">Hours <input id="cGoal" type="number" min="0" max="200" step="0.25"></label>
       <label class="field">Per <select id="cPeriod"><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option></select></label>
     </div>
+    <label class="check"><input type="checkbox" id="cProject"> Active project <span class="muted small">(three at a time)</span></label>
+    <label class="check"><input type="checkbox" id="cPaused"> Paused: hide from quick start</label>
+    <p class="err" id="cErr" role="alert"></p>
     <label class="field">Calendar keywords <input id="cKeys" type="text" placeholder="surgery, clinic, patient"></label>
     <div class="dlgbtns">
       <button type="button" class="ghost danger" id="cDel">Delete</button>
@@ -263,6 +282,20 @@
     <button id="gStopNow">Stop now</button>
     <button class="ghost danger" id="gDiscard">Discard this timer</button>
   </div>
+</dialog>
+
+<dialog id="focusStart">
+  <form method="dialog">
+    <h3>Start a focus session</h3>
+    <label class="field">What will you work on? <input type="text" id="fsDesc" placeholder="Write the CCR for Tuesday's chest pain case"></label>
+    <div class="two">
+      <label class="field">Category <select id="fsCat"></select></label>
+      <div class="field">Length<div class="seg sm" id="fsLen"><button type="button" data-m="25">25</button><button type="button" data-m="50">50</button><button type="button" data-m="90">90</button></div></div>
+    </div>
+    <label class="field">If I get distracted, I will… <input type="text" id="fsIf" placeholder="jot it on the loose-ends list and carry on"></label>
+    <p class="muted small">If-then plans roughly double follow-through (Gollwitzer &amp; Sheeran, 2006).</p>
+    <div class="dlgbtns"><span class="grow"></span><button value="cancel" class="ghost">Cancel</button><button type="button" class="primary" id="fsGo">Start focus</button></div>
+  </form>
 </dialog>
 
 <dialog id="focusDlg">
@@ -286,6 +319,7 @@
     <kbd>F</kbd><span>Start or end a focus session</span>
     <kbd>N</kbd><span>Describe what you're doing</span>
     <kbd>A</kbd><span>Add past time</span>
+    <kbd>R</kbd><span>Open the review</span>
     <kbd>←</kbd><span><kbd>→</kbd> previous / next day</span>
     <kbd>Ctrl K</kbd><span>Command menu (or <kbd>/</kbd>)</span>
   </div>

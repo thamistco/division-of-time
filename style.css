@@ -337,3 +337,65 @@ dialog p{margin:0 0 14px}
   .seg button{flex:1 0 auto;padding:0 10px}
   .tbl{font-size:13px}
 }
+
+/* ---------- v4: review tab, habits, projects, focus plan ---------- */
+.tabs button{position:relative}
+.tabdot{position:absolute;top:9px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--bg)}
+@media (max-width:640px){.tabdot{top:6px;right:calc(50% - 16px)}}
+.nudge{align-items:center}
+.nudge .x{width:32px;height:32px;min-height:32px;margin:-6px -8px -6px 0;color:var(--text-3)}
+.nudge .x svg{width:16px;height:16px}
+.nudge button.sm{margin-left:auto}
+.nudge button.sm + .x{margin-left:0}
+.nudge > span{flex:1}
+.seg.sm{margin:0;padding:2px;border-radius:10px}
+.seg.sm button{min-height:30px;font-size:13px;padding:0 11px;border-radius:8px}
+.row-h .seg.sm{flex:none}
+.chip .proj{font-size:11px;color:var(--c);margin-left:-2px}
+.chip.manage{box-shadow:none;border:1px dashed var(--border-strong);color:var(--text-2);background:transparent}
+.chip.manage:hover{background:var(--surface-2)}
+.badge.muted-b{background:var(--surface-3);color:var(--text-2)}
+.catlist li.paused .n,.catlist li.paused .sw{opacity:.55}
+/* habits grid */
+.hab{display:grid;grid-template-columns:minmax(120px,1.2fr) minmax(0,2fr) 52px;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--border)}
+.hab.head{border-top:0;padding:0 0 4px;font-size:11px;color:var(--text-3)}
+.hab.head > span:last-child,.hab .streak{text-align:right}
+.hab .n{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;font-size:14px;min-width:0}
+.hab .st{flex-basis:100%;font-size:12px;line-height:16px;padding-left:16px}
+.hab .st.warn{color:var(--warn)}.hab .st.bad{color:var(--danger)}
+.hab .cells{display:grid;grid-template-columns:repeat(14,minmax(0,1fr));gap:3px}
+.hab .cells b{font-weight:500;text-align:center}
+.hab .cells b.now{color:var(--text);font-weight:600}
+.hab .cells i{aspect-ratio:1;border-radius:4px;background:var(--surface-2);border:1px solid var(--border);max-height:22px}
+.hab .cells i.c1{background:var(--c);border-color:transparent}
+.hab .cells i.c0{background:transparent;border:1.5px solid color-mix(in oklch,var(--danger) 55%,var(--border))}
+.hab .cells i.c2{background:transparent;border:1.5px dashed var(--border-strong)}
+.hab .cells i.c-1{opacity:.35}
+.hab .streak{font-weight:600;font-size:14px}
+#habits > p{margin:12px 0 0}
+/* projects */
+.proj-row{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--border)}
+.proj-row:first-child{border-top:0;padding-top:0}
+.proj-row .d{flex:1;min-width:0;display:flex;flex-direction:column}
+.proj-row .d small{color:var(--text-3);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.proj-row .num{font-weight:600;white-space:nowrap}
+#projects > p{margin:12px 0 0}
+#shutCard .row-h .icon{width:32px;height:32px;min-height:32px}
+/* focus start */
+#focusStart .seg{margin:6px 0 0;display:flex}
+#focusStart .seg button{flex:1}
+#focusStart .seg button.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow-1)}
+[data-theme=dark] #focusStart .seg button.active{background:var(--surface-3)}
+#focusStart p.muted{margin:-4px 0 4px}
+.nextstep{font-size:13px;color:var(--text-2)}
+@media (max-width:640px){
+  .hab{grid-template-columns:1fr 44px;gap:6px 10px}
+  .hab .cells{grid-column:1/-1;grid-row:2}
+  .hab.head{display:none}
+  .hab .st{padding-left:16px}
+}
+@media (max-width:640px){
+  .quick{margin-bottom:14px}
+  .proj-row .num small{display:none}
+  .proj-row .d b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
