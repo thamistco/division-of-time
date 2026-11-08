@@ -177,7 +177,12 @@ function freeSlots(a, b, ignoreId) {
 function carve(s, f, keepId) {
   const add = [];
   S.entries = S.entries.filter(e => {
-    if (e.id === keepId || e.end == null || !real(e) || e.end <= s || e.start >= f) return true;
+    if (e.id === keepId || !real(e) || e.start >= f) return true;
+    if (e.end == null) { // a running timer: never let new time sit underneath it
+      if (e.start >= s) { e.start = Math.min(f, Date.now()); return true; }
+      add.push({ ...e, id: uid(), end: s, gid: null, focus: false }); e.start = Math.min(f, Date.now()); gSync(add[add.length - 1]); return true;
+    }
+    if (e.end <= s) return true;
     if (e.start >= s && e.end <= f) { gDelete(e); return false; }
     if (e.start < s && e.end > f) { const tail = { ...e, id: uid(), start: f, gid: null }; e.end = s; add.push(tail); gSync(e); gSync(tail); return true; }
     if (e.start < s) e.end = s; else e.start = f;
@@ -195,7 +200,7 @@ function toast(msg, undo, extra) {
   $('#toastTxt').textContent = msg;
   b.hidden = !undo; b.onclick = () => { undo(); t.classList.remove('show'); };
   x.innerHTML = ''; (extra || []).forEach(([lbl, fn, aria]) => { const e = document.createElement('button'); e.textContent = lbl; if (aria) e.setAttribute('aria-label', aria); e.onclick = () => { fn(); t.classList.remove('show'); }; x.appendChild(e); });
-  t.classList.add('show'); clearTimeout(toastT);
+  t.classList.toggle('has-x', !!(extra && extra.length)); t.classList.add('show'); clearTimeout(toastT);
   toastT = setTimeout(() => t.classList.remove('show'), extra ? 8000 : undo ? 5000 : 2600);
 }
 const ENERGY = [[1, '⚡', 'Energised'], [0, '😐', 'Neutral'], [-1, '😓', 'Drained']];
@@ -951,7 +956,7 @@ $('#eSave').onclick = () => {
   const snap = snapshot();
   const data = { desc: $('#eDesc').value.trim(), done: $('#eDone').value.trim(), catId: $('#eCat').value, start: s, end: isRunning ? null : f, focus: $('#eFocus').checked };
   const wasEdit = !!editing;
-  if (editing) { Object.assign(editing, data); if (!isRunning) carve(s, f, editing.id); gSync(editing); }
+  if (editing) { Object.assign(editing, data); carve(s, isRunning ? Date.now() : f, editing.id); gSync(editing); }
   else {
     carve(s, f, null);
     const e = { id: uid(), ...data }; if (preset?.evId) { e.evId = preset.evId; S.evMap[(preset.desc || '').toLowerCase().trim()] = data.catId; }

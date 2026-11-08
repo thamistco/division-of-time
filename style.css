@@ -489,4 +489,9 @@ dialog p{margin:0 0 16px}
 .toast-x button{min-width:36px;padding:0 6px;font-size:18px}
 .pophead{font-size:12px;color:var(--text-3);padding:6px 12px 4px;text-transform:uppercase;letter-spacing:.04em}
 .st.ok{color:var(--success)}
-.toast #toastTxt{white-space:nowrap}
+.toast #toastTxt{min-width:0}.toast.has-x #toastTxt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body{overflow-wrap:break-word}.app{overflow-x:clip}.clock{min-width:0}.clock > *{min-width:0;max-width:100%}
+.hero .hint,#heroHint{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbl td,.tbl th{overflow-wrap:anywhere}
+@media (max-width:480px){#tab-today .stats .stat{padding:12px 10px 12px 14px}#tab-today .stats .stat .v{font-size:clamp(16px,4.8vw,20px)}}
+.hrs span{white-space:nowrap}@media (max-width:480px){.hrs span{right:3px;font-size:10px;letter-spacing:-.02em}}
