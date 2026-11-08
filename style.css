@@ -464,3 +464,6 @@ dialog p{margin:0 0 16px}
   #tab-today .stat:nth-child(n+3){box-shadow:none}
   .stat+.stat::before{top:12px;bottom:12px}
 }
+/* Android widget picker */
+.wsel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:640px){.wsel{grid-template-columns:1fr}}

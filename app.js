@@ -91,7 +91,43 @@ function fix(s) {
   for (const c of s.cats) { c.period ||= 'day'; c.kind ||= 'clinical'; c.keys ??= ''; }
   return s;
 }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('Storage is full. Export a backup.'); } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); nativeSync(); } catch (e) { toast('Storage is full. Export a backup.'); } }
+/* ---------------- Android app bridge (only present inside the Division of Time Android app) ---------------- */
+var NATIVE = window.DotNative || null;
+const shortName = n => n.split(/ & | and /)[0].trim();
+function widgetCats() {
+  const ok = id => S.cats.some(c => c.id === id && !c.paused);
+  const chosen = (S.settings.widgetCats || []).filter(ok);
+  if (chosen.length) return chosen.slice(0, 4);
+  const since = Date.now() - 14 * 864e5;
+  return S.cats.filter(c => !c.paused && c.kind !== 'sleep').map(c => [c.id, catTime(since, Date.now(), c.id)]).sort((x, y) => y[1] - x[1]).slice(0, 4).map(x => x[0]);
+}
+let nativeT;
+function nativeSync() {
+  if (!NATIVE) return;
+  clearTimeout(nativeT);
+  nativeT = setTimeout(() => {
+    try {
+      const r = S.entries.find(e => e.end === null), c = r && S.cats.find(k => k.id === r.catId);
+      NATIVE.sync(JSON.stringify({
+        running: r && c ? { catId: r.catId, name: r.desc || c.name, color: colour(c), start: r.start } : null,
+        cats: widgetCats().map(id => { const k = S.cats.find(x => x.id === id); return { id, name: k.name, short: shortName(k.name), color: colour(k) }; })
+      }));
+    } catch (e) {}
+  }, 150);
+}
+// Apply taps made on the home-screen widget while the app was closed, at the time they were tapped.
+window.__dotNativePending = () => {
+  if (!NATIVE) return;
+  let acts = []; try { acts = JSON.parse(NATIVE.takePending() || '[]'); } catch (e) {}
+  if (!acts.length) { nativeSync(); return; }
+  for (const a of acts) {
+    const r = S.entries.find(e => e.end === null);
+    if (r) { r.end = Math.max(r.start, a.at); if (r.end - r.start < 15000) S.entries = S.entries.filter(e => e !== r); else gSync(r); }
+    if (a.t === 'start' && S.cats.some(c => c.id === a.cat)) { S.entries.push({ id: uid(), catId: a.cat, desc: '', start: a.at, end: null }); S.settings.lastCat = a.cat; }
+  }
+  save(); renderAll();
+};
 
 /* ---------------- helpers ---------------- */
 const NOCAT = { name: 'Uncategorised', color: '#796456', id: null, kind: 'life' };
@@ -363,6 +399,7 @@ function loadGis() {
 }
 async function gConnect() {
   if (!CFG.googleClientId) { toast('Google Calendar isn’t configured.'); return; }
+  if (NATIVE) { NATIVE.googleAuth(SCOPES, false); return; }
   try { await loadGis(); } catch (e) { toast(e.message); return; }
   google.accounts.oauth2.initTokenClient({
     client_id: CFG.googleClientId, scope: SCOPES, prompt: S.g.on ? '' : 'consent', login_hint: S.g.email || undefined,
@@ -377,6 +414,15 @@ async function gConnect() {
     error_callback: () => toast('The Google window was closed')
   }).requestAccessToken();
 }
+window.__dotGoogleToken = async (t, secs, err) => {
+  if (!t) { if (err && err !== 'needs-consent') toast('Google sign-in didn’t finish'); renderG(); return; }
+  const first = !S.g.on;
+  G.token = t; G.exp = Date.now() + secs * 1000; G.err = null;
+  localStorage.setItem(TKEY, JSON.stringify({ t: G.token, exp: G.exp }));
+  S.g.on = true; save(); G.events = {}; G.tried = {};
+  await gLoadCals(); await gFlush();
+  if (first) toast('Google Calendar connected'); renderAll();
+};
 function gDisconnect() {
   if (G.token && window.google?.accounts?.oauth2) google.accounts.oauth2.revoke(G.token, () => {});
   G.token = null; G.exp = 0; G.events = {}; G.tried = {}; localStorage.removeItem(TKEY);
@@ -385,7 +431,7 @@ function gDisconnect() {
 async function gApi(path, opts = {}) {
   if (!gReady()) throw new Error('auth');
   const res = await fetch('https://www.googleapis.com/calendar/v3' + path, { ...opts, headers: { Authorization: 'Bearer ' + G.token, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
-  if (res.status === 401) { G.token = null; localStorage.removeItem(TKEY); renderG(); throw new Error('auth'); }
+  if (res.status === 401) { G.token = null; localStorage.removeItem(TKEY); renderG(); if (NATIVE) NATIVE.googleAuth(SCOPES, true); throw new Error('auth'); }
   if (res.status === 204) return null;
   if (!res.ok) { const t = await res.text(); throw new Error(`Google ${res.status}: ${t.slice(0, 140)}`); }
   return res.json();
@@ -1081,6 +1127,13 @@ function renderSettings() {
   $('#ltft').value = String(S.settings.ltft || 100);
   $('#weekStart').value = String(S.settings.weekStart ?? 1); $('#ifThenOn').checked = !!S.settings.ifThen;
   $$('#themeSeg button').forEach(b => b.classList.toggle('active', b.dataset.t === (S.settings.theme || 'system')));
+  $('#widgetCard').hidden = !NATIVE;
+  $('#appCard').hidden = !!NATIVE || !/Android/i.test(navigator.userAgent);
+  if (NATIVE && !$('#wSel').contains(document.activeElement)) {
+    const cur = S.settings.widgetCats || [], opts = live().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    $('#wSel').innerHTML = [0, 1, 2, 3].map(i => `<label class="field">Button ${i + 1} <select data-w="${i}"><option value="">Automatic</option>${opts}</select></label>`).join('');
+    $$('#wSel select').forEach(sel => { sel.value = cur[+sel.dataset.w] || ''; sel.onchange = () => { const v = $$('#wSel select').map(x => x.value); S.settings.widgetCats = v.some(Boolean) ? v.filter(Boolean) : []; save(); }; });
+  }
 }
 $('#focusLen').onchange = e => { S.settings.focusLen = +e.target.value; save(); tick(); };
 $('#notifyOn').onchange = e => { S.settings.notify = e.target.checked; save(); if (e.target.checked) { if (!('Notification' in window)) toast('This browser doesn’t support notifications'); else Notification.requestPermission(); } };
@@ -1091,7 +1144,7 @@ $('#weekStart').onchange = e => { S.settings.weekStart = +e.target.value; save()
 $('#ifThenOn').onchange = e => { S.settings.ifThen = e.target.checked; save(); };
 $('#ltft').onchange = e => { S.settings.ltft = +e.target.value; save(); renderAll(); };
 $('#themeSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.settings.theme = b.dataset.t; save(); applyTheme(); renderAll(); };
-function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
+function download(name, text, type) { if (NATIVE) { NATIVE.saveFile(name, text, type || 'application/octet-stream'); return; } const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
 $('#expJson').onclick = () => download(`division-of-time-${ymd(Date.now())}.json`, JSON.stringify(S, null, 1), 'application/json');
 $('#expCsv').onclick = () => {
   const q = s => `"${String(s ?? '').replace(/"/g, '""')}"`;
@@ -1192,6 +1245,7 @@ addEventListener('pagehide', () => { S.settings.lastSeen = Date.now(); save(); }
 addEventListener('online', () => { gFlush(); });
 let rsz; addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if ($('#tab-reports').classList.contains('active')) renderReports(); }, 200); });
 if (gReady()) gLoadCals().then(() => { gFlush(); renderAll(); });
+if (NATIVE) { document.documentElement.classList.add('native'); if (S.g.on && !gReady()) NATIVE.googleAuth(SCOPES, true); window.__dotNativePending(); setInterval(() => { if (S.g.on && G.exp && G.exp - Date.now() < 5 * 60000) NATIVE.googleAuth(SCOPES, true); }, 60000); }
 // compact the sticky timer once the page scrolls (hysteresis stops it flickering at the threshold)
 addEventListener('scroll', () => { const h = $('#hero'), c = h.classList.contains('compact'); if (!c && scrollY > 160) h.classList.add('compact'); else if (c && scrollY < 40) h.classList.remove('compact'); }, { passive: true });
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
