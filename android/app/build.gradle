@@ -6,8 +6,8 @@ android {
     applicationId 'com.thamistco.divisionoftime'
     minSdk 29
     targetSdk 34
-    versionCode 1
-    versionName '1.0'
+    versionCode 2
+    versionName '1.1'
   }
   signingConfigs {
     release {
@@ -18,6 +18,12 @@ android {
     }
   }
   buildTypes { release { minifyEnabled false; signingConfig signingConfigs.release } }
+  testOptions { unitTests { includeAndroidResources = true; all { systemProperty 'robolectric.offline', 'true'; systemProperty 'robolectric.dependency.dir', '/workspace/work/robolectric' } } }
   compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
-dependencies { implementation 'com.google.android.gms:play-services-auth:21.2.0' }
+dependencies {
+  implementation 'com.google.android.gms:play-services-auth:21.2.0'
+  testImplementation 'junit:junit:4.13.2'
+  testImplementation 'org.robolectric:robolectric:4.13'
+  testImplementation 'androidx.test:core:1.6.1'
+}

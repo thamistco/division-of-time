@@ -1245,7 +1245,15 @@ addEventListener('pagehide', () => { S.settings.lastSeen = Date.now(); save(); }
 addEventListener('online', () => { gFlush(); });
 let rsz; addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if ($('#tab-reports').classList.contains('active')) renderReports(); }, 200); });
 if (gReady()) gLoadCals().then(() => { gFlush(); renderAll(); });
-if (NATIVE) { document.documentElement.classList.add('native'); if (S.g.on && !gReady()) NATIVE.googleAuth(SCOPES, true); window.__dotNativePending(); setInterval(() => { if (S.g.on && G.exp && G.exp - Date.now() < 5 * 60000) NATIVE.googleAuth(SCOPES, true); }, 60000); }
+// In the Android app, check once a day whether a newer APK is on the site.
+function nativeUpdateCheck() {
+  if (!NATIVE || !NATIVE.versionCode) return;
+  fetch('app/version.json', { cache: 'no-store' }).then(r => r.json()).then(v => {
+    const newer = v.code > NATIVE.versionCode(); $('#appUpdate').hidden = !newer;
+    if (newer && S.settings.updNag !== ymd(Date.now())) { S.settings.updNag = ymd(Date.now()); save(); toast('An app update is ready in Settings'); }
+  }).catch(() => {});
+}
+if (NATIVE) { document.documentElement.classList.add('native'); nativeUpdateCheck(); if (S.g.on && !gReady()) NATIVE.googleAuth(SCOPES, true); window.__dotNativePending(); setInterval(() => { if (S.g.on && G.exp && G.exp - Date.now() < 5 * 60000) NATIVE.googleAuth(SCOPES, true); }, 60000); }
 // compact the sticky timer once the page scrolls (hysteresis stops it flickering at the threshold)
 addEventListener('scroll', () => { const h = $('#hero'), c = h.classList.contains('compact'); if (!c && scrollY > 160) h.classList.add('compact'); else if (c && scrollY < 40) h.classList.remove('compact'); }, { passive: true });
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});

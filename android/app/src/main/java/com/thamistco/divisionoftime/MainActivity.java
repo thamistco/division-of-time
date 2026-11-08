@@ -46,7 +46,7 @@ public class MainActivity extends Activity {
     web.setWebViewClient(new WebViewClient() {
       @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
         Uri u = r.getUrl();
-        if (u.toString().startsWith(HOME)) return false;
+        if (u.toString().startsWith(HOME) && !u.getPath().endsWith(".apk")) return false; // app updates download in the browser
         try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) { }
         return true;
       }
@@ -111,6 +111,9 @@ public class MainActivity extends Activity {
 
   private class Bridge {
     @JavascriptInterface public void sync(String json) { Store.setState(MainActivity.this, json); TimerWidget.render(MainActivity.this); }
+    @JavascriptInterface public int versionCode() {
+      try { return (int) getPackageManager().getPackageInfo(getPackageName(), 0).getLongVersionCode(); } catch (Exception e) { return 0; }
+    }
     @JavascriptInterface public String takePending() { return Store.takePending(MainActivity.this); }
     @JavascriptInterface public void googleAuth(String scopes, boolean silent) { runOnUiThread(() -> authorize(scopes, silent)); }
     @JavascriptInterface public void saveFile(String name, String text, String mime) {
