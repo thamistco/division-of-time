@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Division of Time</title>
+<meta name="theme-color" content="#4f46e5">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><img src="icon.svg" alt="" width="26" height="26"><span>Division of Time</span></div>
+  <div class="today-total" id="todayTotal" title="Tracked today">0h 00m today</div>
+</header>
+
+<section class="tracker" aria-label="Timer">
+  <input id="desc" type="text" placeholder="What are you working on?" autocomplete="off" aria-label="Description">
+  <button id="catBtn" class="cat-btn" aria-haspopup="listbox"><span class="dot"></span><span class="lbl">Category</span></button>
+  <div class="elapsed" id="elapsed" aria-live="off">0:00:00</div>
+  <button id="focusBtn" class="focus-btn" title="Start a timed focus session">Focus</button>
+  <button id="startBtn" class="start" aria-label="Start timer"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+  <div id="focusInfo" class="focus-info" hidden></div>
+</section>
+
+<div class="quick" id="quick" aria-label="Quick switch"></div>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" data-tab="today" class="active">Today</button>
+  <button role="tab" data-tab="reports">Reports</button>
+  <button role="tab" data-tab="categories">Categories</button>
+  <button role="tab" data-tab="settings">Settings</button>
+</nav>
+
+<main>
+  <!-- TODAY -->
+  <section id="tab-today" class="tab active">
+    <div class="daynav">
+      <button id="prevDay" aria-label="Previous day">‹</button>
+      <h2 id="dayLabel">Today</h2>
+      <button id="nextDay" aria-label="Next day">›</button>
+    </div>
+    <div class="cards">
+      <div class="card stat"><div class="k">Tracked</div><div class="v" id="sTracked">0h</div></div>
+      <div class="card stat"><div class="k">Untracked (waking)</div><div class="v" id="sUntracked">0h</div></div>
+      <div class="card stat"><div class="k">Top category</div><div class="v" id="sTop">–</div></div>
+    </div>
+    <div class="card">
+      <h3>Your day, hour by hour</h3>
+      <div class="timeline" id="timeline"></div>
+      <div class="hours"><span>00</span><span>03</span><span>06</span><span>09</span><span>12</span><span>15</span><span>18</span><span>21</span><span>24</span></div>
+    </div>
+    <div class="split">
+      <div class="card">
+        <h3>Where it went</h3>
+        <div class="donutwrap"><svg id="donut" viewBox="0 0 120 120"></svg><div class="legend" id="legend"></div></div>
+      </div>
+      <div class="card">
+        <h3>Goals today</h3>
+        <div id="goals"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row-h"><h3>Entries</h3><button class="ghost" id="addEntry">+ Add time</button></div>
+      <ul class="entries" id="entries"></ul>
+    </div>
+    <div class="card">
+      <h3>Daily review</h3>
+      <div class="rating" id="rating" role="radiogroup" aria-label="How was today?"></div>
+      <textarea id="note" rows="3" placeholder="What went well? What stole your time? What will you change tomorrow?"></textarea>
+    </div>
+  </section>
+
+  <!-- REPORTS -->
+  <section id="tab-reports" class="tab">
+    <div class="seg" id="range">
+      <button data-r="week" class="active">This week</button>
+      <button data-r="lastweek">Last week</button>
+      <button data-r="month">This month</button>
+      <button data-r="30">Last 30 days</button>
+    </div>
+    <div class="cards">
+      <div class="card stat"><div class="k">Total tracked</div><div class="v" id="rTotal">0h</div></div>
+      <div class="card stat"><div class="k">Daily average</div><div class="v" id="rAvg">0h</div></div>
+      <div class="card stat"><div class="k">Longest focus block</div><div class="v" id="rLong">–</div></div>
+    </div>
+    <div class="card">
+      <h3>Hours per day</h3>
+      <svg id="bars" class="bars" viewBox="0 0 700 260" preserveAspectRatio="none"></svg>
+    </div>
+    <div class="card">
+      <h3>By category</h3>
+      <table class="tbl" id="rTable"><thead><tr><th>Category</th><th>Hours</th><th>Share</th><th>Avg / day</th><th>Goal</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="card">
+      <h3>Top activities</h3>
+      <table class="tbl" id="rDesc"><thead><tr><th>Activity</th><th>Category</th><th>Hours</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="card insight" id="insight"></div>
+  </section>
+
+  <!-- CATEGORIES -->
+  <section id="tab-categories" class="tab">
+    <div class="card">
+      <div class="row-h"><h3>Categories</h3><button class="ghost" id="addCat">+ New category</button></div>
+      <p class="muted">Give a category a daily goal: "at least" for things you want more of (study, exercise, family), "at most" for things to keep in check (social media, admin).</p>
+      <ul class="catlist" id="catList"></ul>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="tab-settings" class="tab">
+    <div class="card">
+      <h3>Focus sessions</h3>
+      <label class="field">Focus length when you tap "Focus"
+        <select id="focusLen"><option value="25">25 min</option><option value="50">50 min</option><option value="90">90 min</option></select>
+      </label>
+      <label class="check"><input type="checkbox" id="notifyOn"> Notify me when a focus session ends or a timer runs over 3 hours</label>
+    </div>
+    <div class="card">
+      <h3>Waking hours</h3>
+      <p class="muted">Used to work out how much of your day is untracked.</p>
+      <div class="two">
+        <label class="field">Wake up <input type="time" id="wake" value="07:00"></label>
+        <label class="field">Bedtime <input type="time" id="bed" value="23:00"></label>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Your data</h3>
+      <p class="muted">Everything is stored on this device only. Export a backup to move it to another device.</p>
+      <div class="btns">
+        <button id="expJson">Export backup (JSON)</button>
+        <button id="expCsv">Export entries (CSV)</button>
+        <label class="btnlike">Import backup<input type="file" id="impJson" accept="application/json" hidden></label>
+        <button id="wipe" class="danger">Delete all data</button>
+      </div>
+    </div>
+    <p class="muted small">Division of Time · made for you · works offline, install it from your browser's menu.</p>
+  </section>
+</main>
+
+<!-- dialogs -->
+<div class="pop" id="catPop" hidden><div class="poplist" id="catPopList" role="listbox"></div></div>
+
+<dialog id="entryDlg">
+  <form method="dialog" id="entryForm">
+    <h3 id="entryTitle">Edit entry</h3>
+    <label class="field">Description <input id="eDesc" type="text"></label>
+    <label class="field">Category <select id="eCat"></select></label>
+    <div class="two">
+      <label class="field">Start <input id="eStart" type="datetime-local" step="60"></label>
+      <label class="field">End <input id="eEnd" type="datetime-local" step="60"></label>
+    </div>
+    <p class="err" id="eErr"></p>
+    <div class="dlgbtns">
+      <button type="button" class="danger" id="eDel">Delete</button>
+      <span class="grow"></span>
+      <button value="cancel" class="ghost">Cancel</button>
+      <button type="button" id="eSave" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="catDlg">
+  <form method="dialog">
+    <h3 id="catTitle">Category</h3>
+    <label class="field">Name <input id="cName" type="text" maxlength="30"></label>
+    <label class="field">Colour <input id="cColor" type="color"></label>
+    <div class="two">
+      <label class="field">Daily goal
+        <select id="cGoalType"><option value="">No goal</option><option value="min">At least</option><option value="max">At most</option></select>
+      </label>
+      <label class="field">Hours <input id="cGoal" type="number" min="0" max="24" step="0.25"></label>
+    </div>
+    <div class="dlgbtns">
+      <button type="button" class="danger" id="cDel">Delete</button>
+      <span class="grow"></span>
+      <button value="cancel" class="ghost">Cancel</button>
+      <button type="button" id="cSave" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status"></div>
+<script src="app.js"></script>
+</body>
+</html>
