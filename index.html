@@ -80,7 +80,7 @@
 
   <div class="stats">
     <div class="stat"><div class="k">Tracked</div><div class="v" id="sTracked">0m</div><div class="s" id="sTrackedSub"></div></div>
-    <div class="stat"><div class="k">Untracked</div><div class="v" id="sUntracked">0m</div><div class="s">of waking hours</div></div>
+    <div class="stat" hidden><div class="k">Untracked</div><div class="v" id="sUntracked">0m</div></div>
     <div class="stat"><div class="k">Deep focus</div><div class="v" id="sFocus">0m</div><div class="s" id="sFocusSub"></div></div>
     <div class="stat"><div class="k">Family &amp; free</div><div class="v" id="sFree">0m</div><div class="s" id="sFreeSub"></div></div>
   </div>
@@ -95,8 +95,8 @@
       <div class="dayscroll" id="dayScroll"><div class="daygrid" id="dayGrid"></div></div>
     </div>
     <div class="col">
-      <div class="card"><h3>Where it went</h3><div class="hbars" id="hbars"></div></div>
-      <div class="card"><h3>Goals</h3><div id="goals"></div></div>
+      <div class="card" hidden><h3>Where it went</h3><div class="hbars" id="hbars"></div></div>
+      <div class="card"><div class="row-h"><h3>Goals</h3><span class="muted small" id="goalSub"></span></div><div id="goals"></div></div>
     </div>
   </div>
 

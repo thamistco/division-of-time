@@ -4,7 +4,7 @@
    Entries live in localStorage on this device; the Google token (1 hour) is kept locally. */
 (() => {
 'use strict';
-const KEY = 'dot.v1', TKEY = 'dot.gtok', VERSION = 4;
+const KEY = 'dot.v1', TKEY = 'dot.gtok', VERSION = 5;
 const CFG = window.DOT_CONFIG || {};
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -14,13 +14,17 @@ const HOURPX = 52;
 
 /* ---------------- palette (light / dark tones, see research-design.md) ---------------- */
 const PAL = [
-  ['Blue', '#2563EB', '#5B9BF5'], ['Orange', '#C26A00', '#F0A030'], ['Teal', '#00876A', '#2EB88E'], ['Magenta', '#BE3A8C', '#EC6CB9'],
-  ['Sky', '#0A85C2', '#38BDF8'], ['Brown', '#8F6243', '#C8936B'], ['Green', '#3D8B37', '#7BC86C'], ['Red', '#D1402B', '#F87060'],
-  ['Gold', '#9A7F00', '#E3C545'], ['Violet', '#7C4DDB', '#A585F5'], ['Indigo', '#4F5BD5', '#8C95F0'], ['Slate', '#475569', '#94A3B8']
+  // v5: colour carries meaning. Work is cool (blues, steel), learning is violet, family is warm, health is green,
+  // life admin is earthy, sleep is night. OKLCH with matched lightness and chroma, so no hue shouts; every tone is
+  // at least 3:1 on its surfaces (WCAG 1.4.11). Light tone first, dark-theme tone second.
+  ['Blue', '#0D6ABB', '#66A9F2'], ['Navy', '#364493', '#7B8DD6'], ['Steel', '#347285', '#80B4C5'], ['Teal', '#027C7C', '#74C1C0'],
+  ['Violet', '#724AAB', '#B191E8'], ['Iris', '#7777C0', '#B5B6F9'], ['Orchid', '#8B4E8F', '#CC94CE'], ['Rose', '#B64466', '#ED87A0'],
+  ['Terracotta', '#B9562C', '#ED9471'], ['Ochre', '#A36E09', '#E4B471'], ['Green', '#1A8656', '#76C598'], ['Sage', '#677E49', '#ABC092'],
+  ['Taupe', '#796456', '#B4A093'], ['Night', '#333D50', '#5E697E']
 ];
 const isDark = () => document.documentElement.dataset.theme === 'dark';
 function colour(c) {
-  const hex = (c && c.color || '#64748B').toUpperCase();
+  const hex = (c && c.color || '#796456').toUpperCase();
   const p = PAL.find(x => x[1] === hex || x[2] === hex);
   return p ? (isDark() ? p[2] : p[1]) : hex;
 }
@@ -31,18 +35,18 @@ const FREEK = ['family', 'free'], WORKK = ['clinical', 'admin'];
 const P = name => PAL.find(p => p[0] === name)[1];
 const GP_SET = [
   ['Surgery & clinics', 'Blue', 'clinical', '', 0, 'day', 'surgery, clinic, patient, home visit, duty, triage, on call, ward'],
-  ['Results & letters', 'Brown', 'admin', 'max', 1.5, 'day', 'results, letters, admin, prescriptions, docman, email, paperwork'],
-  ['Out of hours', 'Red', 'clinical', 'min', 4, 'month', 'ooh, out of hours, urgent care, 111, extended access'],
+  ['Results & letters', 'Steel', 'admin', 'max', 1.5, 'day', 'results, letters, admin, prescriptions, docman, email, paperwork'],
+  ['Out of hours', 'Navy', 'clinical', 'min', 4, 'month', 'ooh, out of hours, urgent care, 111, extended access'],
   ['Tutorial & teaching', 'Violet', 'learning', 'min', 2, 'week', 'tutorial, teaching, hdr, half day release, vts, debrief, balint'],
-  ['Self-study & exams', 'Sky', 'learning', 'min', 4, 'week', 'study, revision, akt, sca, exam, course, webinar, cpd, mock', true],
-  ['ePortfolio', 'Indigo', 'learning', '', 0, 'week', 'eportfolio, portfolio, ccr, learning log, cot, cbd, msf, arcp'],
-  ['Side projects', 'Gold', 'learning', '', 0, 'week', 'qaaf, coding, project, build, app', true],
-  ['Family time', 'Orange', 'family', 'min', 2, 'day', 'family, sam, alex, park, nursery, playgroup, birthday, dinner'],
-  ['Exercise & walking', 'Teal', 'free', 'min', 0.5, 'day', 'gym, run, walk, swim, yoga, football, workout'],
-  ['Rest & leisure', 'Magenta', 'free', '', 0, 'day', 'tv, film, read, relax, friends, mosque, prayer'],
-  ['Chores & errands', 'Green', 'life', '', 0, 'day', 'shopping, groceries, cleaning, laundry, garage, appointment, errand'],
-  ['Phone & social media', 'Slate', 'life', 'max', 1, 'day', 'social, youtube, instagram, scrolling'],
-  ['Sleep', '#334155', 'sleep', 'min', 7, 'day', 'sleep, nap']
+  ['Self-study & exams', 'Iris', 'learning', 'min', 4, 'week', 'study, revision, akt, sca, exam, course, webinar, cpd, mock', true],
+  ['ePortfolio', 'Orchid', 'learning', '', 0, 'week', 'eportfolio, portfolio, ccr, learning log, cot, cbd, msf, arcp'],
+  ['Side projects', 'Rose', 'learning', '', 0, 'week', 'qaaf, coding, project, build, app', true],
+  ['Family time', 'Terracotta', 'family', 'min', 2, 'day', 'family, sam, alex, park, nursery, playgroup, birthday, dinner'],
+  ['Exercise & walking', 'Green', 'free', 'min', 0.5, 'day', 'gym, run, walk, swim, yoga, football, workout'],
+  ['Rest & leisure', 'Sage', 'free', '', 0, 'day', 'tv, film, read, relax, friends, mosque, prayer'],
+  ['Chores & errands', 'Ochre', 'life', '', 0, 'day', 'shopping, groceries, cleaning, laundry, garage, appointment, errand'],
+  ['Phone & social media', 'Taupe', 'life', 'max', 1, 'day', 'social, youtube, instagram, scrolling'],
+  ['Sleep', 'Night', 'sleep', 'min', 7, 'day', 'sleep, nap']
 ];
 const mkCat = ([name, col, kind, goalType, goal, period, keys, project]) => ({ id: uid(), name, color: col.startsWith('#') ? col : P(col), kind, goalType, goal, period, keys, project: !!project });
 
@@ -58,9 +62,9 @@ function fix(s) {
   const v = s.settings.v || (s.settings.v2 ? 2 : 1);
   if (v < 3) {
     // v1/v2 → v3: richer types, goal periods, new palette, GP trainee names for the old defaults
-    const RENAME = { 'Clinical work': ['Surgery & clinics', 'Blue', 'clinical'], 'Admin & paperwork': ['Results & letters', 'Brown', 'admin'], 'Study & exams': ['Self-study & exams', 'Sky', 'learning'],
-      'Side projects': [null, 'Gold', 'learning'], 'Family time': [null, 'Orange', 'family'], 'Exercise & walking': [null, 'Teal', 'free'], 'Chores & errands': [null, 'Green', 'life'],
-      'Rest & leisure': [null, 'Magenta', 'free'], 'Phone & social media': [null, 'Slate', 'life'], 'Sleep': [null, '#334155', 'sleep'] };
+    const RENAME = { 'Clinical work': ['Surgery & clinics', 'Blue', 'clinical'], 'Admin & paperwork': ['Results & letters', 'Steel', 'admin'], 'Study & exams': ['Self-study & exams', 'Iris', 'learning'],
+      'Side projects': [null, 'Rose', 'learning'], 'Family time': [null, 'Terracotta', 'family'], 'Exercise & walking': [null, 'Green', 'free'], 'Chores & errands': [null, 'Ochre', 'life'],
+      'Rest & leisure': [null, 'Sage', 'free'], 'Phone & social media': [null, 'Taupe', 'life'], 'Sleep': [null, 'Night', 'sleep'] };
     for (const c of s.cats) {
       const r = RENAME[c.name];
       if (r) { const t = GP_SET.find(g => g[0] === (r[0] || c.name)); c.name = r[0] || c.name; c.color = r[1].startsWith('#') ? r[1] : P(r[1]); c.kind = r[2]; if (t) { c.keys = t[6]; if (!c.goalType) { c.goalType = t[3]; c.goal = t[4]; } c.period = t[5]; } }
@@ -74,6 +78,15 @@ function fix(s) {
     // v4: active projects (cap of three) and paused categories
     for (const c of s.cats) if (['Side projects', 'Self-study & exams'].includes(c.name)) c.project = true;
   }
+  if (v < 5) {
+    // v5 palette: defaults take their family colour; custom categories move from the old swatch to its nearest new one
+    const OLD = { '#2563EB': 'Blue', '#C26A00': 'Terracotta', '#00876A': 'Teal', '#BE3A8C': 'Rose', '#0A85C2': 'Iris', '#8F6243': 'Steel', '#3D8B37': 'Green', '#D1402B': 'Rose',
+      '#9A7F00': 'Ochre', '#7C4DDB': 'Violet', '#4F5BD5': 'Navy', '#475569': 'Taupe', '#334155': 'Night', '#64748B': 'Taupe' };
+    for (const c of s.cats) {
+      const t = GP_SET.find(g => g[0] === c.name), o = OLD[(c.color || '').toUpperCase()];
+      if (t) c.color = P(t[1]); else if (o) c.color = P(o);
+    }
+  }
   s.settings.v = VERSION;
   for (const c of s.cats) { c.period ||= 'day'; c.kind ||= 'clinical'; c.keys ??= ''; }
   return s;
@@ -81,7 +94,7 @@ function fix(s) {
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('Storage is full. Export a backup.'); } }
 
 /* ---------------- helpers ---------------- */
-const NOCAT = { name: 'Uncategorised', color: '#64748B', id: null, kind: 'life' };
+const NOCAT = { name: 'Uncategorised', color: '#796456', id: null, kind: 'life' };
 const cat = id => S.cats.find(c => c.id === id) || NOCAT;
 const kindOf = e => cat(e.catId).kind;
 const running = () => S.entries.find(e => e.end == null);
@@ -639,8 +652,12 @@ function renderGoals(day) {
   const goals = S.cats.filter(c => c.goalType && c.goal > 0);
   if (!goals.length) { $('#goals').innerHTML = '<p class="muted small">No goals yet. Add one in Categories.</p>'; return; }
   const scale = c => (['clinical', 'admin', 'learning'].includes(c.kind) && c.period !== 'day' ? ltft() : 1);
+  // Only goals that still need attention are shown; met goals collapse into the count.
+  let met = 0;
+  const needs = (c, per) => { const [a, b] = goalWindow(per, day), v = catTime(a, b, c.id), g = c.goal * scale(c) * H;
+    const ok = c.goalType === 'min' ? v >= g : v <= g * 0.75; if (ok) met++; return !ok; };
   const html = ['day', 'week', 'month'].map(per => {
-    const gs = goals.filter(c => (c.period || 'day') === per); if (!gs.length) return '';
+    const gs = goals.filter(c => (c.period || 'day') === per && needs(c, per)); if (!gs.length) return '';
     return `<div class="goalsec">${{ day: 'Today', week: 'This week', month: 'This month' }[per]}</div>` + gs.map(c => {
       const [a, b] = goalWindow(per, day), v = catTime(a, b, c.id), g = c.goal * scale(c) * H, pct = Math.min(100, v / g * 100);
       let st, cls;
@@ -651,7 +668,8 @@ function renderGoals(day) {
       return `<div class="goal ${done ? 'done' : ''}"><div class="gh"><span>${esc(c.name)} <small>${c.goalType === 'min' ? 'at least' : 'at most'} ${fmtH(g)}</small></span><span class="num">${done ? '<span class="tick" aria-label="Goal reached">✓</span>' : ''}${fmtHM(v)}</span></div><div class="bar"><i style="width:${pct}%;background:${col}"></i></div>${done ? '' : `<div class="st ${cls}">${st}</div>`}</div>`;
     }).join('');
   }).join('');
-  $('#goals').innerHTML = html;
+  $('#goalSub').textContent = met ? `✓ ${met} of ${goals.length} on track` : '';
+  $('#goals').innerHTML = html || '<p class="muted small" style="margin:0">Everything’s on track. Nothing needs you here.</p>';
 }
 
 function renderGrid(a, b, isToday) {
@@ -743,7 +761,7 @@ function renderNudges(day, d) {
     if ((wd === 5 && nowMin > sd) || wd === 0) { const k = ymd(monday(day)); if (!(S.weeks[k] || {}).wins) out.push(['', '🗓️', 'Weekly review: five minutes on wins, what to drop and next week’s top three.', 'Open', () => { wrOff = 0; switchTab('review'); setTimeout(() => $('#weekReview').scrollIntoView({ block: 'start' }), 50); }]); }
   }
   const dk = ymd(day), gone = (S.settings.dismissed || {})[dk] || [];
-  const show = out.filter(n => !gone.includes(n[1])).slice(0, 3);
+  const show = out.filter(n => !gone.includes(n[1])).slice(0, 1); // one suggestion at a time keeps Today calm
   $('#nudges').innerHTML = show.map(([k, i, t, btn], j) => `<div class="nudge ${k}"><span>${t}</span>${btn ? `<button class="sm" data-n="${j}">${btn}</button>` : ''}<button class="icon ghost x" data-x="${j}" aria-label="Dismiss" title="Dismiss for today"><svg class="i"><use href="#i-x"/></svg></button></div>`).join('');
   $$('#nudges [data-n]').forEach(b => b.onclick = show[+b.dataset.n][4]);
   $$('#nudges [data-x]').forEach(b => b.onclick = () => { S.settings.dismissed = { [dk]: [...gone, show[+b.dataset.x][1]] }; save(); renderDay(); });
@@ -920,10 +938,10 @@ function renderTraining(a, b, nd) {
   $('#trainSub').textContent = `· targets ${L < 1 ? 'at ' + Math.round(L * 100) + '% LTFT' : 'full time'}, per COGPED's 70:30 week`;
   const cell = (k, v, s, pct, col) => `<div><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div><div class="meter"><i style="width:${Math.min(100, pct * 100)}%;background:${col}"></i></div></div>`;
   $('#train').innerHTML =
-    cell('Clinical', fmtH(clin), `target ${fmtH(ct)}${weeks > 1.1 ? '' : ' a week'}`, clin / ct, 'var(--accent)') +
-    cell('Education', fmtH(learn), `target ${fmtH(lt)} incl. tutorial & self-study`, learn / lt, colour({ color: P('Sky') })) +
+    cell('Clinical', fmtH(clin), `target ${fmtH(ct)}${weeks > 1.1 ? '' : ' a week'}`, clin / ct, colour(S.cats.find(c => c.kind === 'clinical'))) +
+    cell('Education', fmtH(learn), `target ${fmtH(lt)} incl. tutorial & self-study`, learn / lt, colour({ color: P('Violet') })) +
     cell('Admin : clinical', clin ? `1 : ${(1 / Math.max(ratio, 0.01)).toFixed(1)}` : '–', ratio > 1 / 3 ? 'above BMA’s 1 : 3 guide' : 'BMA guide is 1 : 3', Math.min(1, ratio * 3), ratio > 1 / 3 ? 'var(--warn)' : 'var(--success)') +
-    cell('OOH this month', fmtH(ooh), `typical ${fmtH(4 * L * H)} a month`, ooh / (4 * L * H), colour({ color: P('Red') }));
+    cell('OOH this month', fmtH(ooh), `typical ${fmtH(4 * L * H)} a month`, ooh / (4 * L * H), colour({ color: P('Navy') }));
 }
 function renderWeekGrid(a) {
   const names = Array.from({ length: 7 }, (_, d) => fmtDay(addDays(a, d), { weekday: 'short' })), used = new Set();

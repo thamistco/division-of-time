@@ -13,8 +13,9 @@
   --bg:#F5F4F0;--surface:#FFFFFF;--surface-2:#F0EFEB;--surface-3:#E6E5E0;
   --line:rgb(24 24 27/.07);--border:#E3E2DD;--border-strong:#A3A3AA;
   --text:#1A1A1E;--text-2:#56565E;--text-3:#6F6F78;
-  --accent:#4F46E5;--on-accent:#FFFFFF;--accent-tint:color-mix(in oklch,var(--accent) 9%,var(--surface));--accent-text:#4338CA;
-  --danger:#C8321F;--success:#15803D;--warn:#A64A06;
+  /* v5: the interface is ink on paper; colour is reserved for your categories (data), red for stop/now, green for done */
+  --accent:#1C1B1F;--on-accent:#FAFAF7;--accent-tint:#ECEAE4;--accent-text:#1C1B1F;
+  --danger:#C4372B;--success:#2F7D4F;--warn:#9A5B0B;
   --warn-tint:color-mix(in oklch,#F59E0B 12%,var(--surface));--good-tint:color-mix(in oklch,#22C55E 10%,var(--surface));
   --shadow-1:0 1px 2px rgb(28 25 23/.05),0 1px 3px rgb(28 25 23/.04);
   --shadow-2:0 1px 2px rgb(28 25 23/.04),0 8px 24px -6px rgb(28 25 23/.12);
@@ -31,7 +32,7 @@
   --bg:#0F0F12;--surface:#18181C;--surface-2:#212126;--surface-3:#2B2B31;
   --line:rgb(255 255 255/.06);--border:#2E2E34;--border-strong:#6B6B74;
   --text:#ECECEF;--text-2:#A6A6AF;--text-3:#8A8A94;
-  --accent:#8B8DF9;--on-accent:#0F0F12;--accent-tint:color-mix(in oklch,var(--accent) 15%,var(--surface));--accent-text:#A9ABFB;
+  --accent:#ECEAE4;--on-accent:#141416;--accent-tint:#2A2A30;--accent-text:#F2F1EC;
   --danger:#F97066;--success:#4ADE80;--warn:#FBBF24;
   --warn-tint:color-mix(in oklch,#F59E0B 13%,var(--surface));--good-tint:color-mix(in oklch,#22C55E 11%,var(--surface));
   --shadow-1:0 0 0 1px rgb(255 255 255/.04);--shadow-2:0 0 0 1px rgb(255 255 255/.05),0 12px 32px -8px rgb(0 0 0/.6);--shadow-3:0 0 0 1px rgb(255 255 255/.06),0 24px 64px rgb(0 0 0/.6);
@@ -441,3 +442,25 @@ dialog p{margin:0 0 16px}
 /* goals: reached goals collapse to a tick */
 .goal.done .bar{height:4px}
 .goal .tick{color:var(--success);margin-right:6px;font-weight:600}
+
+/* v5 colour: ink accent details */
+.start{box-shadow:0 8px 20px -10px rgb(0 0 0/.5)}
+.chip.on{background:color-mix(in oklch,var(--c) 12%,var(--surface))}
+[data-theme=dark] .chip.on{background:color-mix(in oklch,var(--c) 20%,var(--surface))}
+.nudge::before{background:var(--text-3)}
+.tabdot{background:var(--danger)}
+.badge{background:color-mix(in oklch,var(--c,var(--text-3)) 14%,var(--surface));color:var(--text-2)}
+.hab .cells i.c1{background:var(--c)}
+/* v6 simplify: three figures, no sub-lines on phones */
+#tab-today .stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+.stat[hidden]{display:none}
+#goalSub{color:var(--success)}
+@media (max-width:640px){
+  #tab-today .stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+  #tab-today .stat{padding:12px 14px}
+  #tab-today .stat .s{display:none}
+  #tab-today .stat .v{font-size:20px;line-height:26px}
+  #tab-today .stat:nth-child(3)::before{display:block}
+  #tab-today .stat:nth-child(n+3){box-shadow:none}
+  .stat+.stat::before{top:12px;bottom:12px}
+}
