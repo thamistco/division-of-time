@@ -1,7 +1,10 @@
 package com.thamistco.divisionoftime;
 
 import android.annotation.SuppressLint;
+import android.Manifest;
 import android.app.Activity;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.net.Uri;
@@ -28,7 +31,7 @@ import org.json.JSONObject;
 
 public class MainActivity extends Activity {
   static final String HOME = "https://thamistco.github.io/division-of-time/";
-  private static final int RC_AUTH = 7, RC_FILE = 8;
+  private static final int RC_AUTH = 7, RC_FILE = 8, RC_NOTIF = 9;
   private static WeakReference<MainActivity> live = new WeakReference<>(null);
   private WebView web;
   private ValueCallback<Uri[]> fileCb;
@@ -63,6 +66,22 @@ public class MainActivity extends Activity {
     if (b != null) web.restoreState(b); else web.loadUrl(HOME);
     setContentView(web);
     live = new WeakReference<>(this);
+    askNotificationsOnce();
+  }
+
+  /** Android 13+: ask once (first launch) for permission to show the running-timer notification. */
+  private void askNotificationsOnce() {
+    if (Build.VERSION.SDK_INT < 33) return;
+    if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return;
+    android.content.SharedPreferences p = getSharedPreferences("dot", MODE_PRIVATE);
+    if (p.getBoolean("askedNotif", false)) return;
+    p.edit().putBoolean("askedNotif", true).apply();
+    requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, RC_NOTIF);
+  }
+
+  @Override public void onRequestPermissionsResult(int rc, String[] perms, int[] res) {
+    super.onRequestPermissionsResult(rc, perms, res);
+    if (rc == RC_NOTIF) TimerNotification.update(this);
   }
 
   @Override protected void onSaveInstanceState(Bundle o) { super.onSaveInstanceState(o); web.saveState(o); }

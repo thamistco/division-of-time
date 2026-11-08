@@ -96,6 +96,7 @@
     </div>
     <div class="col">
       <div class="card" hidden><h3>Where it went</h3><div class="hbars" id="hbars"></div></div>
+      <div class="card" id="threeCard" hidden><div class="row-h"><h3>3 for today</h3><span class="muted small" id="threeSub"></span></div><div id="three"></div></div>
       <div class="card"><div class="row-h"><h3>Goals</h3><span class="muted small" id="goalSub"></span></div><div id="goals"></div></div>
     </div>
   </div>
@@ -131,9 +132,12 @@
         <button class="sm" id="planToCal" style="margin-top:8px" hidden>Add to Google Calendar</button>
       </div>
     </div>
+    <div id="sdThreeWrap" hidden><label class="lab">3 for today <span class="muted" id="sdThreeSub"></span></label><div id="sdThree"></div></div>
+    <div id="sdDoneWrap" hidden><label class="lab">What got done</label><ul class="donelist" id="sdDone"></ul></div>
   </div>
   <div class="card" id="weekReview">
     <div class="row-h"><h3>Weekly review <small id="wrSub"></small></h3><div class="seg sm" id="wrSeg"><button data-w="0" class="active">This week</button><button data-w="-1">Last week</button></div></div>
+    <p class="verdict" id="wrVerdict"></p>
     <div class="review-grid">
       <div><label class="lab" for="wrWins">Wins this week</label><textarea id="wrWins" rows="2"></textarea>
         <label class="lab" for="wrDrop">What to drop, delegate or batch</label><textarea id="wrDrop" rows="2"></textarea></div>
@@ -182,7 +186,7 @@
   </div>
   <div class="card"><h3>Google Calendar</h3><div id="gBox"></div></div>
   <div class="card" id="appCard" hidden><div class="row-h"><h3>Android app</h3><a class="btnlike" href="app/division-of-time.apk" download>Download</a></div><p class="muted small">Adds a home-screen widget with the live timer and one-tap buttons for your top four categories. Log in the app from then on.</p></div>
-  <div class="card" id="widgetCard" hidden><div class="row-h"><h3>Home-screen widget</h3><span class="muted small">up to 4</span></div><p class="nudge" id="appUpdate" hidden><span>A new version of the Android app is ready.</span><a class="btnlike" href="app/division-of-time.apk">Update</a></p><p class="muted small">Tap a category on the widget to start it, tap it again or press stop to finish. Leave these blank to use your four busiest categories.</p><div class="wsel" id="wSel"></div></div>
+  <div class="card" id="widgetCard" hidden><div class="row-h"><h3>Home-screen widget</h3><span class="muted small">up to 4</span></div><label class="check"><input type="checkbox" id="lockOn"> Show the running timer on the lock screen, with Stop and Switch</label><p class="nudge" id="appUpdate" hidden><span>A new version of the Android app is ready.</span><a class="btnlike" href="app/division-of-time.apk">Update</a></p><p class="muted small">Tap a category on the widget to start it, tap it again or press stop to finish. Leave these blank to use your four busiest categories.</p><div class="wsel" id="wSel"></div></div>
   <div class="card">
     <h3>Your week</h3>
     <div class="three">
@@ -206,6 +210,7 @@
     <label class="field">Focus session length
       <select id="focusLen"><option value="25">25 min</option><option value="50">50 min</option><option value="90">90 min</option></select></label>
     <label class="check"><input type="checkbox" id="ifThenOn"> Ask for an if-then plan before each focus session</label>
+    <label class="check"><input type="checkbox" id="energyOn"> After each block, ask whether it left you energised or drained</label>
     <label class="check"><input type="checkbox" id="notifyOn"> Notify me when a focus session ends, a timer passes 3 hours, or nothing's tracked for 30 waking minutes</label>
     <label class="check"><input type="checkbox" id="hapticOn"> Haptic feedback on start and stop (Android)</label>
   </div>
@@ -234,6 +239,7 @@
   <form method="dialog">
     <h3 id="entryTitle">Edit entry</h3>
     <label class="field">Description <input id="eDesc" type="text"></label>
+    <label class="field">What got done <span class="muted small">(optional)</span> <input id="eDone" type="text" placeholder="Wrote 2 CCRs, cleared results"></label>
     <label class="field">Category <select id="eCat"></select></label>
     <div class="two">
       <label class="field">Start <input id="eStart" type="datetime-local" step="60"></label>
@@ -262,6 +268,7 @@
       <label class="field">Hours <input id="cGoal" type="number" min="0" max="200" step="0.25"></label>
       <label class="field">Per <select id="cPeriod"><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option></select></label>
     </div>
+    <label class="field">Priority <select id="cTier"><option value="core">Core: what matters most right now</option><option value="secondary">Secondary</option><option value="maintain">Maintain: only show me if it slips</option></select></label>
     <label class="check"><input type="checkbox" id="cProject"> Active project <span class="muted small">(three at a time)</span></label>
     <label class="check"><input type="checkbox" id="cPaused"> Paused: hide from quick start</label>
     <p class="err" id="cErr" role="alert"></p>
@@ -281,6 +288,7 @@
   <div class="stack">
     <button class="primary" id="gKeep">Keep it running</button>
     <button id="gStopSeen"></button>
+    <button id="gSplit">Split: tell me what came after</button>
     <button id="gStopNow">Stop now</button>
     <button class="ghost danger" id="gDiscard">Discard this timer</button>
   </div>
@@ -304,6 +312,8 @@
   <h3>How focused were you?</h3>
   <p class="muted small" id="focusDlgTxt"></p>
   <div class="rating num" id="fq" style="margin-bottom:16px"></div>
+  <div id="fEnergyWrap"><label class="lab">How do you feel after it?</label><div class="rating energy" id="fEnergy"></div></div>
+  <label class="field">What got done <input type="text" id="fDone" placeholder="Drafted the reflection"></label>
   <label class="field">Next step, so you can pick up fast <input type="text" id="fNext" placeholder="Finish the discussion section"></label>
   <div class="dlgbtns"><span class="grow"></span><button class="ghost" id="fSkip">Skip</button><button class="primary" id="fSave">Save</button></div>
 </dialog>
@@ -328,7 +338,8 @@
   <div class="dlgbtns"><span class="grow"></span><button class="primary" onclick="this.closest('dialog').close()">Got it</button></div>
 </dialog>
 
-<div class="toast" id="toast" role="status"><span id="toastTxt"></span><button id="toastBtn" hidden>Undo</button></div>
+<div class="pop" id="earlyPop" hidden><div class="poplist" id="earlyList" role="listbox" aria-label="Started earlier"><div class="pophead">I started…</div><button data-ago="5">5 minutes ago</button><button data-ago="10">10 minutes ago</button><button data-ago="15">15 minutes ago</button><button data-ago="20">20 minutes ago</button><button data-ago="30">30 minutes ago</button><button data-ago="45">45 minutes ago</button></div></div>
+<div class="toast" id="toast" role="status"><span id="toastTxt"></span><span class="toast-x" id="toastExtra"></span><button id="toastBtn" hidden>Undo</button></div>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>

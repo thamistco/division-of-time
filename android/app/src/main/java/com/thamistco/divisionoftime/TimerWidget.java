@@ -22,6 +22,7 @@ public class TimerWidget extends AppWidgetProvider {
   @Override public void onUpdate(Context c, AppWidgetManager m, int[] ids) { render(c); }
 
   static void render(Context c) {
+    TimerNotification.update(c); // keep the lock-screen notification in step with the widget
     AppWidgetManager m = AppWidgetManager.getInstance(c);
     int[] ids = m.getAppWidgetIds(new ComponentName(c, TimerWidget.class));
     if (ids.length == 0) return;

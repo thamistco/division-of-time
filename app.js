@@ -58,7 +58,7 @@ function load() {
 function fix(s) {
   s.entries ||= []; s.notes ||= {}; s.weeks ||= {}; s.evMap ||= {}; s.gq ||= [];
   s.g = Object.assign({ on: false, show: ['primary'], write: false, writeCal: 'primary', cals: [] }, s.g || {});
-  s.settings = Object.assign({ focusLen: 50, notify: false, haptics: true, wake: '07:00', bed: '23:00', shutdown: '18:30', theme: 'system', weekStart: 1, ifThen: true, ifThenText: '', dismissed: {}, ltft: 100, examName: '', examDate: '', lastCat: null, lastSeen: Date.now() }, s.settings || {});
+  s.settings = Object.assign({ focusLen: 50, notify: false, haptics: true, wake: '07:00', bed: '23:00', shutdown: '18:30', theme: 'system', weekStart: 1, ifThen: true, ifThenText: '', energy: true, lockNotif: true, dismissed: {}, ltft: 100, examName: '', examDate: '', lastCat: null, lastSeen: Date.now() }, s.settings || {});
   const v = s.settings.v || (s.settings.v2 ? 2 : 1);
   if (v < 3) {
     // v1/v2 → v3: richer types, goal periods, new palette, GP trainee names for the old defaults
@@ -111,6 +111,7 @@ function nativeSync() {
       const r = S.entries.find(e => e.end === null), c = r && S.cats.find(k => k.id === r.catId);
       NATIVE.sync(JSON.stringify({
         running: r && c ? { catId: r.catId, name: r.desc || c.name, color: colour(c), start: r.start } : null,
+        notif: S.settings.lockNotif !== false,
         cats: widgetCats().map(id => { const k = S.cats.find(x => x.id === id); return { id, name: k.name, short: shortName(k.name), color: colour(k) }; })
       }));
     } catch (e) {}
@@ -189,13 +190,15 @@ const announce = t => { $('#live').textContent = t; };
 
 /* ---------------- toast with undo ---------------- */
 let toastT;
-function toast(msg, undo) {
-  const t = $('#toast'), b = $('#toastBtn');
+function toast(msg, undo, extra) {
+  const t = $('#toast'), b = $('#toastBtn'), x = $('#toastExtra');
   $('#toastTxt').textContent = msg;
   b.hidden = !undo; b.onclick = () => { undo(); t.classList.remove('show'); };
+  x.innerHTML = ''; (extra || []).forEach(([lbl, fn, aria]) => { const e = document.createElement('button'); e.textContent = lbl; if (aria) e.setAttribute('aria-label', aria); e.onclick = () => { fn(); t.classList.remove('show'); }; x.appendChild(e); });
   t.classList.add('show'); clearTimeout(toastT);
-  toastT = setTimeout(() => t.classList.remove('show'), undo ? 5000 : 2600);
+  toastT = setTimeout(() => t.classList.remove('show'), extra ? 8000 : undo ? 5000 : 2600);
 }
+const ENERGY = [[1, '⚡', 'Energised'], [0, '😐', 'Neutral'], [-1, '😓', 'Drained']];
 function snapshot() { return JSON.stringify({ entries: S.entries, cats: S.cats }); }
 function restore(snap) { const o = JSON.parse(snap); S.entries = o.entries; S.cats = o.cats; save(); renderAll(); }
 
@@ -210,9 +213,10 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { 
 
 /* ---------------- timer ---------------- */
 let selCat = S.settings.lastCat && S.cats.some(c => c.id === S.settings.lastCat) ? S.settings.lastCat : (S.cats[0]?.id ?? null);
-function start(catId = selCat, desc = $('#desc').value.trim(), focusMin = 0, ifThen = '') {
+function start(catId = selCat, desc = $('#desc').value.trim(), focusMin = 0, ifThen = '', at) {
   stop(true);
-  const now = Date.now();
+  let now = Date.now();
+  if (at) { const lastEnd = S.entries.filter(x => real(x) && x.end).reduce((m, x) => Math.max(m, x.end), 0); now = Math.max(at, lastEnd, now - 12 * H); }
   const e = { id: uid(), catId, desc, start: now, end: null };
   if (focusMin) { e.focus = true; e.focusEnd = now + focusMin * MIN; if (ifThen) e.ifThen = ifThen; }
   S.entries.push(e);
@@ -224,9 +228,25 @@ function stop(silent, at) {
   r.end = Math.min(at || Date.now(), Date.now());
   if (r.end - r.start < 15000) { S.entries = S.entries.filter(e => e !== r); save(); if (!silent) { $('#desc').value = ''; renderAll(); } return; }
   gSync(r); save();
-  if (!silent) { buzz([10, 30, 10]); announce(`Stopped ${cat(r.catId).name}, ${fmtHM(r.end - r.start)}`); $('#desc').value = ''; renderAll(); }
+  if (!silent) {
+    buzz([10, 30, 10]); announce(`Stopped ${cat(r.catId).name}, ${fmtHM(r.end - r.start)}`); $('#desc').value = ''; renderAll();
+    const undo = () => { if (running()) return toast('Another timer is running now'); r.end = null; save(); renderAll(); toast(`${cat(r.catId).name} is running again`); };
+    const ask = S.settings.energy && !r.focus && r.end - r.start >= 10 * MIN && cat(r.catId).kind !== 'sleep';
+    toast(`${ask ? 'How was that?' : 'Stopped · ' + fmtHM(r.end - r.start)}`, undo, ask ? ENERGY.map(([v, i, l]) => [i, () => { r.energy = v; save(); }, l]) : null);
+  }
   if (r.focus && r.end - r.start >= 5 * MIN) askFocusQuality(r);
 }
+// Hold the start button (or right-click it) to say you started a little while ago.
+(() => {
+  const b = $('#startBtn'); let t, held = false;
+  const open = () => { if (running()) return; held = true; buzz(10); const pop = $('#earlyPop'), r = b.getBoundingClientRect(); pop.hidden = false; const l = $('#earlyList'); l.style.top = Math.max(8, r.top - 8 - l.offsetHeight) + 'px'; l.style.left = Math.max(8, Math.min(r.right - l.offsetWidth, innerWidth - l.offsetWidth - 8)) + 'px'; l.querySelector('button').focus(); };
+  b.addEventListener('pointerdown', () => { held = false; clearTimeout(t); t = setTimeout(open, 550); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, () => clearTimeout(t)));
+  b.addEventListener('contextmenu', e => { e.preventDefault(); clearTimeout(t); open(); });
+  b.addEventListener('click', e => { if (held) { e.stopImmediatePropagation(); held = false; } }, true);
+  $('#earlyPop').onclick = e => { const x = e.target.closest('[data-ago]'); $('#earlyPop').hidden = true; if (!x) return; const m = +x.dataset.ago; start(selCat, $('#desc').value.trim(), 0, '', Date.now() - m * MIN); toast(`Started ${m} minutes ago`); };
+  $('#earlyPop').onkeydown = e => { if (e.key === 'Escape') $('#earlyPop').hidden = true; };
+})();
 $('#startBtn').onclick = () => running() ? stop() : start();
 $('#focusBtn').onclick = () => {
   const r = running();
@@ -289,12 +309,15 @@ function askFocusQuality(e) {
   fqEntry = e;
   $('#focusDlgTxt').textContent = `${fmtHM(e.end - e.start)} on ${e.desc || cat(e.catId).name}. 1 is scattered, 5 is fully absorbed.`;
   $('#fq').innerHTML = [1, 2, 3, 4, 5].map(i => `<button data-q="${i}" class="${e.quality === i ? 'on' : ''}" aria-label="${i} out of 5">${i}</button>`).join('');
-  $('#fNext').value = e.next || '';
+  $('#fNext').value = e.next || ''; $('#fDone').value = e.done || '';
+  $('#fEnergy').innerHTML = ENERGY.map(([v, i, l]) => `<button type="button" data-v="${v}" class="${e.energy === v ? 'on' : ''}" aria-label="${l}" title="${l}">${i}</button>`).join('');
+  $('#fEnergyWrap').hidden = !S.settings.energy;
   $('#focusDlg').showModal();
 }
 $('#fq').onclick = ev => { const b = ev.target.closest('button'); if (b) $$('#fq button').forEach(x => x.classList.toggle('on', x === b)); };
+$('#fEnergy').onclick = ev => { const b = ev.target.closest('button'); if (b) $$('#fEnergy button').forEach(x => x.classList.toggle('on', x === b && !x.classList.contains('on'))); };
 $('#fSave').onclick = () => {
-  const q = $('#fq .on'); if (fqEntry) { if (q) fqEntry.quality = +q.dataset.q; fqEntry.next = $('#fNext').value.trim(); save(); }
+  const q = $('#fq .on'), en = $('#fEnergy .on'); if (fqEntry) { if (q) fqEntry.quality = +q.dataset.q; if (en) fqEntry.energy = +en.dataset.v; fqEntry.next = $('#fNext').value.trim(); fqEntry.done = $('#fDone').value.trim(); save(); }
   $('#focusDlg').close(); renderAll();
 };
 $('#fSkip').onclick = () => $('#focusDlg').close();
@@ -310,6 +333,8 @@ function guard() {
   $('#gStopSeen').textContent = `Stop it at ${fmtTime(ls)}`;
   $('#gStopSeen').hidden = !(away > 20 * MIN);
   $('#gStopSeen').onclick = () => { $('#guardDlg').close(); stop(false, ls); toast(`Stopped at ${fmtTime(ls)}`); };
+  $('#gSplit').hidden = !(away > 20 * MIN);
+  $('#gSplit').onclick = () => { $('#guardDlg').close(); stop(true, ls); renderAll(); openEntry(null, { start: ls, end: Date.now(), catId: habitCat(ls) || r.catId }); $('#entryTitle').textContent = `What were you doing after ${fmtTime(ls)}?`; };
   if (!$('#guardDlg').open) $('#guardDlg').showModal();
 }
 $('#gKeep').onclick = () => { const r = running(); if (r) S.settings.guardAck = r.id; save(); $('#guardDlg').close(); };
@@ -524,6 +549,17 @@ function guessCat(title) {
   for (const c of S.cats) for (const k of (c.keys || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean)) if (new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(t)) return c.id;
   return null;
 }
+// What you usually do at this time of day: the category most often running at this hour on the same kind of day over the last three weeks.
+function habitCat(t) {
+  const d = new Date(t), we = d.getDay() === 0 || d.getDay() === 6, h = d.getHours(), score = new Map();
+  for (let i = 1; i <= 21; i++) {
+    const day = addDays(sod(t), -i), dw = new Date(day).getDay(); if ((dw === 0 || dw === 6) !== we) continue;
+    const a = day + h * H, b = a + H;
+    for (const e of S.entries) if (real(e) && e.end) { const o = overlap(e, a, b); if (o) score.set(e.catId, (score.get(e.catId) || 0) + o); }
+  }
+  const best = [...score].sort((x, y) => y[1] - x[1])[0];
+  return best && best[1] >= 40 * MIN && S.cats.some(c => c.id === best[0] && !c.paused) ? best[0] : null;
+}
 const loggedEv = id => S.entries.some(e => e.evId === id);
 function pastUnlogged(day) { return dayEvents(day).filter(ev => !ev.allDay && !ev.transp && ev.start < Date.now() && sod(ev.start) === day && !loggedEv(ev.id)); }
 function logEvent(ev, catId) {
@@ -614,6 +650,7 @@ function renderDay() {
   }).join('') : '<div class="empty"><b>Nothing tracked yet</b>Tap a category above to start your first timer.</div>';
 
   renderGoals(a);
+  renderThree(a, isToday);
 
   const list = S.entries.filter(e => real(e) && overlap(e, a, b) > 0).sort((x, y) => y.start - x.start);
   $('#entryCount').textContent = list.length ? `${list.length} entr${list.length === 1 ? 'y' : 'ies'}` : '';
@@ -622,6 +659,30 @@ function renderDay() {
     return `<li><span class="dot" style="background:${colour(c)}"></span><div class="d"><b><span class="x">${esc(e.desc || c.name)}</span>${e.focus ? '<span class="badge">focus' + (e.quality ? ' ' + e.quality + '/5' : '') + '</span>' : ''}${e.evId ? '<span class="badge">calendar</span>' : ''}</b><small>${esc(c.name)} · ${fmtTime(e.start)}–${e.end ? fmtTime(e.end) : '<span class="live">now</span>'}</small></div><span class="dur" data-live="${e.end ? '' : e.id}" title="${fmtTime(e.start)}–${e.end ? fmtTime(e.end) : 'now'}">${fmtHM(dur)}</span><span class="act"><button class="icon ghost" data-act="resume" data-id="${e.id}" title="Start this again" aria-label="Start this again"><svg class="i"><use href="#i-play"/></svg></button><button class="icon ghost" data-act="edit" data-id="${e.id}" title="Edit" aria-label="Edit entry"><svg class="i"><use href="#i-edit"/></svg></button></span></li>`;
   }).join('') : '<li class="empty"><b>No entries on this day</b>Fill gaps on the timeline, or use + Add time.</li>';
 
+}
+
+/* ---------------- 3 for today (Feel-Good Productivity: a short daily list you can finish) ---------------- */
+const threeOf = d => (S.notes[ymd(d)] || {}).three || [];
+function threeHTML(d, editable) {
+  const L = threeOf(d);
+  const items = L.map((x, i) => `<li class="${x.d ? 'done' : ''}"><label><input type="checkbox" data-i="${i}" ${x.d ? 'checked' : ''}><span>${esc(x.t)}</span></label>${editable ? `<button class="icon ghost x" data-del="${i}" aria-label="Remove"><svg class="i"><use href="#i-x"/></svg></button>` : ''}</li>`).join('');
+  const add = editable && L.length < 3 ? `<input type="text" class="threeAdd" placeholder="${L.length ? 'Add another (up to three)' : 'Up to three things that would make today count'}" aria-label="Add to 3 for today">` : '';
+  return `<ul class="three-list">${items}</ul>${add}`;
+}
+function bindThree(box, d, after) {
+  const k = ymd(d), set = L => { S.notes[k] = { ...(S.notes[k] || {}), three: L }; save(); after(); };
+  box.onchange = e => { const c = e.target.closest('[data-i]'); if (!c) return; const L = threeOf(d).slice(); L[+c.dataset.i] = { ...L[+c.dataset.i], d: c.checked }; if (c.checked) buzz(8); set(L); if (c.checked && L.every(x => x.d)) toast('All three done. That’s a good day.'); };
+  box.onclick = e => { const b = e.target.closest('[data-del]'); if (b) { const L = threeOf(d).slice(); L.splice(+b.dataset.del, 1); set(L); } };
+  box.onkeydown = e => { const i = e.target.closest('.threeAdd'); if (!i || e.key !== 'Enter' || !i.value.trim()) return; e.preventDefault(); const t = i.value.trim(); i.value = ''; set([...threeOf(d), { t, d: false }].slice(0, 3)); setTimeout(() => box.querySelector('.threeAdd')?.focus(), 0); };
+}
+function renderThree(day, isToday) {
+  const L = threeOf(day), nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+  const show = L.length || (isToday && nowMin < hm(S.settings.shutdown));
+  $('#threeCard').hidden = !show; if (!show) return;
+  $('#threeSub').textContent = L.length ? `${L.filter(x => x.d).length} of ${L.length} done` : '';
+  const box = $('#three'), ae = document.activeElement; if (box.contains(ae) && ae.classList.contains('threeAdd') && ae.value) return;
+  box.innerHTML = threeHTML(day, isToday || sod(Date.now()) - day <= 864e5);
+  bindThree(box, day, renderDay);
 }
 
 /* ---------------- Review tab: habits, shutdown, weekly review, projects ---------------- */
@@ -646,7 +707,8 @@ function renderHabits() {
   $('#habitSub').textContent = 'last 14 days';
   $('#habits').innerHTML = `<div class="hab head"><span></span><div class="cells">${head.map((d, i) => `<b class="${i === 13 ? 'now' : ''}">${d}</b>`).join('')}</div><span>Streak</span></div>` + hs.map(h => {
     const twice = h.days[12] === 0 && h.days[11] === 0 && h.days[13] !== 1, once = h.days[12] === 0 && h.days[13] !== 1;
-    const st = twice ? '<span class="st bad">Missed twice: restart small today</span>' : once ? '<span class="st warn">Don’t miss twice</span>' : '';
+    let bounces = 0; for (let i = 1; i < 14; i++) if (h.days[i] === 1 && h.days[i - 1] === 0) bounces++;
+    const st = twice ? '<span class="st bad">Missed twice: restart small today</span>' : once ? '<span class="st warn">Don’t miss twice</span>' : bounces ? `<span class="st ok">Bounced back ${bounces}×</span>` : '';
     return `<div class="hab"><span class="n"><span class="dot" style="background:${h.col}"></span>${esc(h.name)}${st}</span><div class="cells">${h.days.map((v, i) => `<i class="c${v}" style="--c:${h.col}" title="${fmtDay(addDays(today, i - 13), { weekday: 'short', day: 'numeric', month: 'short' })} · ${['missed', 'done', 'today'][v] || 'before tracking'}"></i>`).join('')}</div><span class="streak num">${h.streak ? h.streak + 'd' : '–'}</span></div>`;
   }).join('') + '<p class="muted small">Habits come from your daily “at least” goals. Missing once is normal; the aim is never twice in a row.</p>';
 }
@@ -663,7 +725,14 @@ function renderShutdown() {
   if (document.activeElement !== $('#note')) $('#note').value = n.text || '';
   if (document.activeElement !== $('#plan')) $('#plan').value = n.plan || '';
   $('#planToCal').hidden = !(gReady() && (n.plan || '').trim());
+  // 3 for today, and what got done, so the review closes the loop on the day
+  const th = threeOf(rvDay); $('#sdThreeWrap').hidden = !th.length;
+  if (th.length) { $('#sdThree').innerHTML = threeHTML(rvDay, false); bindThree($('#sdThree'), rvDay, renderReview); $('#sdThreeSub').textContent = `${th.filter(x => x.d).length} of ${th.length}`; }
+  const ents = S.entries.filter(e => real(e) && e.end && sod(e.start) === rvDay && e.end - e.start >= 15 * MIN && !['sleep', 'free', 'family'].includes(kindOf(e))).sort((x, y) => x.start - y.start).slice(-8);
+  $('#sdDoneWrap').hidden = !ents.length;
+  if (!$('#sdDone').contains(document.activeElement)) $('#sdDone').innerHTML = ents.map(e => `<li><span class="dot" style="background:${colour(cat(e.catId))}"></span><span class="w">${fmtTime(e.start)} · ${esc(e.desc || cat(e.catId).name)}${e.energy != null ? ' ' + ENERGY.find(x => x[0] === e.energy)[1] : ''}</span><input type="text" data-id="${e.id}" value="${esc(e.done || '')}" placeholder="What got done?" aria-label="What got done in ${esc(e.desc || cat(e.catId).name)}"></li>`).join('');
 }
+$('#sdDone').addEventListener('input', e => { const i = e.target.closest('[data-id]'); if (!i) return; const en = S.entries.find(x => x.id === i.dataset.id); if (en) { en.done = i.value.trim(); save(); } });
 function renderProjects() {
   const ps = S.cats.filter(c => c.project && !c.paused), a = monday(Date.now()), b = addDays(a, 7);
   $('#projSub').textContent = `· ${ps.length} of 3`;
@@ -700,10 +769,14 @@ function renderGoals(day) {
   const scale = c => (['clinical', 'admin', 'learning'].includes(c.kind) && c.period !== 'day' ? ltft() : 1);
   // Only goals that still need attention are shown; met goals collapse into the count.
   let met = 0;
+  // Core goals first. "Maintain" goals only appear when they slip behind the pace of the day, week or month.
+  const TR = { core: 0, secondary: 1, maintain: 2 }, tierOf = c => c.tier || 'secondary';
   const needs = (c, per) => { const [a, b] = goalWindow(per, day), v = catTime(a, b, c.id), g = c.goal * scale(c) * H;
-    const ok = c.goalType === 'min' ? v >= g : v <= g * 0.75; if (ok) met++; return !ok; };
+    let ok = c.goalType === 'min' ? v >= g : v <= g * 0.75;
+    if (!ok && tierOf(c) === 'maintain') { const frac = Math.min(1, Math.max(0, (Math.min(Date.now(), b) - a) / (b - a))); ok = c.goalType === 'min' ? v >= g * frac * 0.8 : v <= g; }
+    if (ok) met++; return !ok; };
   const html = ['day', 'week', 'month'].map(per => {
-    const gs = goals.filter(c => (c.period || 'day') === per && needs(c, per)); if (!gs.length) return '';
+    const gs = goals.filter(c => (c.period || 'day') === per && needs(c, per)).sort((x, y) => TR[tierOf(x)] - TR[tierOf(y)]); if (!gs.length) return '';
     return `<div class="goalsec">${{ day: 'Today', week: 'This week', month: 'This month' }[per]}</div>` + gs.map(c => {
       const [a, b] = goalWindow(per, day), v = catTime(a, b, c.id), g = c.goal * scale(c) * H, pct = Math.min(100, v / g * 100);
       let st, cls;
@@ -711,7 +784,7 @@ function renderGoals(day) {
       else { st = v > g ? `${fmtHM(v - g)} over your limit` : `${fmtHM(g - v)} left`; cls = v > g ? 'bad' : 'ok'; }
       const col = c.goalType === 'max' && v > g ? 'var(--danger)' : colour(c);
       const done = c.goalType === 'min' && v >= g;
-      return `<div class="goal ${done ? 'done' : ''}"><div class="gh"><span>${esc(c.name)} <small>${c.goalType === 'min' ? 'at least' : 'at most'} ${fmtH(g)}</small></span><span class="num">${done ? '<span class="tick" aria-label="Goal reached">✓</span>' : ''}${fmtHM(v)}</span></div><div class="bar"><i style="width:${pct}%;background:${col}"></i></div>${done ? '' : `<div class="st ${cls}">${st}</div>`}</div>`;
+      return `<div class="goal ${done ? 'done' : ''}"><div class="gh"><span>${tierOf(c) === 'core' ? '<span class="tier">Core</span>' : ''}${esc(c.name)} <small>${c.goalType === 'min' ? 'at least' : 'at most'} ${fmtH(g)}</small></span><span class="num">${done ? '<span class="tick" aria-label="Goal reached">✓</span>' : ''}${fmtHM(v)}</span></div><div class="bar"><i style="width:${pct}%;background:${col}"></i></div>${done ? '' : `<div class="st ${cls}">${st}</div>`}</div>`;
     }).join('');
   }).join('');
   $('#goalSub').textContent = met ? `✓ ${met} of ${goals.length} on track` : '';
@@ -776,7 +849,7 @@ $('#dayGrid').onclick = e => {
   if (gap) {
     const [s, f] = gap.dataset.gap.split('-').map(Number);
     const ev2 = dayEvents(viewDay).find(x => !x.allDay && x.start < f && x.end > s);
-    return openEntry(null, { start: s, end: f, desc: ev2?.title || '', catId: (ev2 && guessCat(ev2.title)) || selCat });
+    return openEntry(null, { start: s, end: f, desc: ev2?.title || '', catId: (ev2 && guessCat(ev2.title)) || habitCat(s + Math.min(f - s, H) / 2) || selCat });
   }
   const lane = e.target.closest('#actualLane');
   if (lane) {
@@ -803,6 +876,12 @@ function renderNudges(day, d) {
     const twice = habits().filter(h => h.days[12] === 0 && h.days[13] !== 1);
     if (twice.length) out.push(['warn', '🔁', `Missed yesterday: ${twice.map(h => esc(h.name)).join(', ')}. Never miss twice; even ten minutes today keeps it going.`, 'Habits', () => switchTab('review')]);
     if (nowMin > 19 * 60 && d.free < H) out.push(['warn', '🌿', 'Little family or free time today. Wellbeing tends to dip below about 2 hours, so protect some of this evening.']);
+    const bh = bestHour(), tm = addDays(day, 1), tk = ymd(tm);
+    if (bh != null && gReady() && nowMin >= 12 * 60 && S.settings.blocked !== tk) {
+      ensureDay(tm);
+      const ws = tm + bh * H, we = ws + 2 * H, evs = G.events[tk];
+      if (evs && !evs.some(x => !x.allDay && x.start < we && x.end > ws)) out.push(['', '📌', `Your best focus time is ${String(bh).padStart(2, '0')}:00–${String(bh + 2).padStart(2, '0')}:00, and it’s free tomorrow. Block it for deep work?`, 'Block it', () => blockFocus(ws, we, tk)]);
+    }
     if (wd === 1 && nowMin < 12 * 60) out.push(['good', '✨', 'Fresh week. What one thing would make it a good one? Put it in your calendar now.']);
     if ((wd === 5 && nowMin > sd) || wd === 0) { const k = ymd(monday(day)); if (!(S.weeks[k] || {}).wins) out.push(['', '🗓️', 'Weekly review: five minutes on wins, what to drop and next week’s top three.', 'Open', () => { wrOff = 0; switchTab('review'); setTimeout(() => $('#weekReview').scrollIntoView({ block: 'start' }), 50); }]); }
   }
@@ -849,7 +928,7 @@ function openEntry(id, pre) {
   $('#entryTitle').textContent = editing ? 'Edit entry' : pre?.evId ? 'Log calendar event' : 'Add time';
   $('#eCat').innerHTML = S.cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   const now = Date.now(), base = viewDay === sod(now) ? now : viewDay + 12 * H, src = editing || pre || {};
-  $('#eDesc').value = src.desc || '';
+  $('#eDesc').value = src.desc || ''; $('#eDone').value = src.done || '';
   $('#eCat').value = src.catId || selCat;
   $('#eStart').value = toLocalInput(src.start ?? base - H);
   $('#eEnd').value = editing ? (editing.end ? toLocalInput(editing.end) : '') : toLocalInput(src.end ?? base);
@@ -870,7 +949,7 @@ $('#eSave').onclick = () => {
   if ((f || 0) > Date.now() + MIN) return err('End can’t be in the future.');
   if (f && f - s > 20 * H) return err('That’s over 20 hours. Check the dates.');
   const snap = snapshot();
-  const data = { desc: $('#eDesc').value.trim(), catId: $('#eCat').value, start: s, end: isRunning ? null : f, focus: $('#eFocus').checked };
+  const data = { desc: $('#eDesc').value.trim(), done: $('#eDone').value.trim(), catId: $('#eCat').value, start: s, end: isRunning ? null : f, focus: $('#eFocus').checked };
   const wasEdit = !!editing;
   if (editing) { Object.assign(editing, data); if (!isRunning) carve(s, f, editing.id); gSync(editing); }
   else {
@@ -1005,13 +1084,48 @@ function renderWeekGrid(a) {
   $('#wk').innerHTML = html;
   $('#wkLegend').innerHTML = S.cats.filter(c => used.has(c.id)).map(c => `<span><span class="dot" style="background:${colour(c)}"></span>${esc(c.name)}</span>`).join('');
 }
+// One honest line about the week before the questions (after Superfocus's weekly check-in).
+function weekVerdict(a) {
+  const b = Math.min(addDays(a, 7), Date.now()), m = byCat(a, b), parts = [];
+  const top = [...m].filter(([id]) => cat(id).kind !== 'sleep').sort((x, y) => y[1] - x[1])[0];
+  if (!top) return 'Nothing tracked this week yet.';
+  parts.push(`${cat(top[0]).name} took the most time: ${fmtHM(top[1])}.`);
+  const days = Math.max(1, Math.ceil((b - a) / 864e5)), scale = c => (['clinical', 'admin', 'learning'].includes(c.kind) && c.period !== 'day' ? ltft() : 1);
+  const core = S.cats.filter(c => c.goalType && c.goal > 0 && (c.tier || 'secondary') === 'core' && (c.period || 'day') !== 'month');
+  const L = core.map(c => { const g = c.goal * scale(c) * H * ((c.period || 'day') === 'day' ? days : 1), v = catTime(a, b, c.id); return { c, g, v, ok: c.goalType === 'min' ? v >= g : v <= g }; });
+  if (L.length) { const off = L.filter(x => !x.ok); parts.push(off.length ? `Core goals: ${off.map(x => `${x.c.name} ${fmtHM(x.v)} of ${fmtH(x.g)}`).join(', ')}.` : `All ${L.length} core goal${L.length > 1 ? 's' : ''} on track.`); }
+  const en = new Map(); for (const e of S.entries) if (real(e) && e.energy != null && overlap(e, a, b)) { const x = en.get(e.catId) || [0, 0]; x[0] += e.energy; x[1]++; en.set(e.catId, x); }
+  const avg = [...en].filter(([, x]) => x[1] >= 2).map(([id, x]) => [id, x[0] / x[1]]).sort((x, y) => y[1] - x[1]);
+  if (avg.length && avg[0][1] > 0.3) parts.push(`${cat(avg[0][0]).name} gave you the most energy${avg.length > 1 && avg[avg.length - 1][1] < -0.3 ? `; ${cat(avg[avg.length - 1][0]).name} drained it most` : ''}.`);
+  else if (avg.length && avg[avg.length - 1][1] < -0.3) parts.push(`${cat(avg[avg.length - 1][0]).name} drained you most.`);
+  return parts.join(' ');
+}
 function renderWeekReview(a) {
   const k = ymd(a), w = S.weeks[k] || {};
   $('#wrSub').textContent = `· week of ${fmtDay(a, { day: 'numeric', month: 'short' })}`;
+  $('#wrVerdict').textContent = weekVerdict(a);
   for (const [id, f] of [['wrWins', 'wins'], ['wrDrop', 'drop'], ['wrNext', 'next'], ['wrAdv', 'adv']]) {
     const el = $('#' + id); if (document.activeElement !== el) el.value = w[f] || '';
     el.oninput = () => { S.weeks[k] = { ...(S.weeks[k] || {}), [f]: el.value }; save(); };
   }
+}
+function bestHour() {
+  const today = sod(Date.now()), a = addDays(today, -27), b = addDays(today, 1), byHour = Array(24).fill(0);
+  for (const e of S.entries) {
+    if (!isDeep(e) || overlap(e, a, b) <= 0) continue;
+    const wgt = e.quality ? e.quality / 3 : 1;
+    for (let t = Math.max(e.start, a); t < Math.min(endOf(e), b);) { const d = new Date(t), next = Math.min(endOf(e), b, new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours() + 1).getTime()); byHour[d.getHours()] += (next - t) / MIN * wgt; t = next; }
+  }
+  let best = -1, bh = 0; for (let h = 0; h < 23; h++) { const v = byHour[h] + byHour[h + 1]; if (v > best) { best = v; bh = h; } }
+  return byHour.reduce((p, q) => p + q, 0) > 240 ? bh : null;
+}
+async function blockFocus(s, f, key) {
+  const cal = S.g.cals.find(c => c.primary)?.id || 'primary', topic = (S.notes[ymd(Date.now())] || {}).plan;
+  try {
+    await gApi(`/calendars/${encodeURIComponent(cal)}/events`, { method: 'POST', body: JSON.stringify({ summary: '🎯 Deep work' + (topic ? ': ' + topic.replace(/^i will\s*/i, '') : ''), description: 'Your best focus window, blocked from Division of Time.', start: { dateTime: new Date(s).toISOString() }, end: { dateTime: new Date(f).toISOString() }, reminders: { useDefault: true } }) });
+    S.settings.blocked = key; save(); delete G.events[key]; G.tried['d' + sod(s)] = 0;
+    toast(`Blocked ${fmtDay(s, { weekday: 'short' })} ${fmtTime(s)}–${fmtTime(f)}`); renderDay();
+  } catch (e) { toast(e.message === 'auth' ? 'Reconnect Google first' : 'Couldn’t add it: ' + e.message); }
 }
 function renderHeat() {
   const today = sod(Date.now()), a = addDays(today, -27), b = addDays(today, 1);
@@ -1095,7 +1209,7 @@ function openCat(id) {
   pickCol = (editCat?.color || PAL.find(p => !S.cats.some(c => (c.color || '').toUpperCase() === p[1]))?.[1] || PAL[0][1]).toUpperCase();
   $('#cSwatches').innerHTML = PAL.map(p => `<button type="button" style="--c:${isDark() ? p[2] : p[1]}" data-col="${p[1]}" class="${p[1] === pickCol ? 'on' : ''}" aria-label="${p[0]}" title="${p[0]}"></button>`).join('');
   $('#cKind').value = editCat?.kind || 'clinical';
-  $('#cGoalType').value = editCat?.goalType || '';
+  $('#cGoalType').value = editCat?.goalType || ''; $('#cTier').value = editCat?.tier || 'secondary';
   $('#cGoal').value = editCat?.goal || '';
   $('#cPeriod').value = editCat?.period || 'day';
   $('#cKeys').value = editCat?.keys || '';
@@ -1106,7 +1220,7 @@ function openCat(id) {
 $('#cSwatches').onclick = e => { const b = e.target.closest('[data-col]'); if (!b) return; pickCol = b.dataset.col; $$('#cSwatches button').forEach(x => x.classList.toggle('on', x === b)); };
 $('#cSave').onclick = () => {
   const name = $('#cName').value.trim(); if (!name) return $('#cName').focus();
-  const d = { name, color: pickCol, kind: $('#cKind').value, goalType: $('#cGoalType').value, goal: +$('#cGoal').value || 0, period: $('#cPeriod').value, keys: $('#cKeys').value.trim(), project: $('#cProject').checked, paused: $('#cPaused').checked };
+  const d = { name, color: pickCol, kind: $('#cKind').value, goalType: $('#cGoalType').value, tier: $('#cTier').value, goal: +$('#cGoal').value || 0, period: $('#cPeriod').value, keys: $('#cKeys').value.trim(), project: $('#cProject').checked, paused: $('#cPaused').checked };
   if (d.project && !d.paused && S.cats.filter(c => c !== editCat && c.project && !c.paused).length >= 3) { $('#cErr').textContent = 'You already have three active projects. Pause or finish one first: fewer at once means each one moves.'; buzz([8, 40, 8]); return; }
   if (d.paused && running()?.catId === editCat?.id) stop(true);
   if (editCat) Object.assign(editCat, d); else S.cats.push({ id: uid(), ...d });
@@ -1126,6 +1240,7 @@ function renderSettings() {
   for (const k of ['wake', 'bed', 'shutdown', 'examName', 'examDate']) if (document.activeElement !== $('#' + k)) $('#' + k).value = S.settings[k] || '';
   $('#ltft').value = String(S.settings.ltft || 100);
   $('#weekStart').value = String(S.settings.weekStart ?? 1); $('#ifThenOn').checked = !!S.settings.ifThen;
+  $('#energyOn').checked = !!S.settings.energy; $('#lockOn').checked = S.settings.lockNotif !== false;
   $$('#themeSeg button').forEach(b => b.classList.toggle('active', b.dataset.t === (S.settings.theme || 'system')));
   $('#widgetCard').hidden = !NATIVE;
   $('#appCard').hidden = !!NATIVE || !/Android/i.test(navigator.userAgent);
@@ -1142,6 +1257,8 @@ for (const k of ['wake', 'bed', 'shutdown']) $('#' + k).onchange = e => { if (e.
 for (const k of ['examName', 'examDate']) $('#' + k).onchange = e => { S.settings[k] = e.target.value.trim(); save(); renderTracker(); };
 $('#weekStart').onchange = e => { S.settings.weekStart = +e.target.value; save(); renderAll(); };
 $('#ifThenOn').onchange = e => { S.settings.ifThen = e.target.checked; save(); };
+$('#energyOn').onchange = e => { S.settings.energy = e.target.checked; save(); };
+$('#lockOn').onchange = e => { S.settings.lockNotif = e.target.checked; save(); };
 $('#ltft').onchange = e => { S.settings.ltft = +e.target.value; save(); renderAll(); };
 $('#themeSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.settings.theme = b.dataset.t; save(); applyTheme(); renderAll(); };
 function download(name, text, type) { if (NATIVE) { NATIVE.saveFile(name, text, type || 'application/octet-stream'); return; } const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
@@ -1240,7 +1357,7 @@ setInterval(() => {
 }, 1000);
 setInterval(() => { save(); if ($('#tab-today').classList.contains('active') && !document.querySelector('dialog[open]')) renderDay(); }, 60000);
 addEventListener('storage', e => { if (e.key === KEY) { S = load(); renderAll(); } });
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { guard(); renderAll(); } else { S.settings.lastSeen = Date.now(); save(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { if (NATIVE) window.__dotNativePending(); guard(); renderAll(); } else { S.settings.lastSeen = Date.now(); save(); } });
 addEventListener('pagehide', () => { S.settings.lastSeen = Date.now(); save(); });
 addEventListener('online', () => { gFlush(); });
 let rsz; addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if ($('#tab-reports').classList.contains('active')) renderReports(); }, 200); });
@@ -1257,5 +1374,5 @@ if (NATIVE) { document.documentElement.classList.add('native'); nativeUpdateChec
 // compact the sticky timer once the page scrolls (hysteresis stops it flickering at the threshold)
 addEventListener('scroll', () => { const h = $('#hero'), c = h.classList.contains('compact'); if (!c && scrollY > 160) h.classList.add('compact'); else if (c && scrollY < 40) h.classList.remove('compact'); }, { passive: true });
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
-window.__dot = { get S() { return S; }, G, renderAll, start, stop, switchTab, guard, openCmd, habits };
+window.__dot = { get S() { return S; }, G, renderAll, start, stop, switchTab, guard, openCmd, habits, weekVerdict, habitCat, bestHour };
 })();
