@@ -1,4 +1,4 @@
-/* Division of Time v4
+/* Division of Time v5
    A personal time tracker for a GP trainee and parent: plan vs actual with Google Calendar,
    training-week targets, focus sessions, shutdown and weekly reviews.
    Entries live in localStorage on this device; the Google token (1 hour) is kept locally. */
@@ -155,7 +155,7 @@ function applyTheme() {
   let t = S.settings.theme || 'system';
   if (t === 'system') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   document.documentElement.dataset.theme = t;
-  $('#themeColor').content = t === 'dark' ? '#0E0E10' : '#F7F7F5';
+  $('#themeColor').content = t === 'dark' ? '#0F0F12' : '#F5F4F0';
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { if (S.settings.theme === 'system') { applyTheme(); renderAll(); } });
 
@@ -647,7 +647,8 @@ function renderGoals(day) {
       if (c.goalType === 'min') { st = v >= g ? 'Goal reached' : `${fmtHM(g - v)} to go`; cls = v >= g ? 'ok' : ''; }
       else { st = v > g ? `${fmtHM(v - g)} over your limit` : `${fmtHM(g - v)} left`; cls = v > g ? 'bad' : 'ok'; }
       const col = c.goalType === 'max' && v > g ? 'var(--danger)' : colour(c);
-      return `<div class="goal"><div class="gh"><span>${esc(c.name)} <small>${c.goalType === 'min' ? 'at least' : 'at most'} ${fmtH(g)}</small></span><span class="num">${fmtHM(v)}</span></div><div class="bar"><i style="width:${pct}%;background:${col}"></i></div><div class="st ${cls}">${st}</div></div>`;
+      const done = c.goalType === 'min' && v >= g;
+      return `<div class="goal ${done ? 'done' : ''}"><div class="gh"><span>${esc(c.name)} <small>${c.goalType === 'min' ? 'at least' : 'at most'} ${fmtH(g)}</small></span><span class="num">${done ? '<span class="tick" aria-label="Goal reached">✓</span>' : ''}${fmtHM(v)}</span></div><div class="bar"><i style="width:${pct}%;background:${col}"></i></div>${done ? '' : `<div class="st ${cls}">${st}</div>`}</div>`;
     }).join('');
   }).join('');
   $('#goals').innerHTML = html;
@@ -1173,6 +1174,8 @@ addEventListener('pagehide', () => { S.settings.lastSeen = Date.now(); save(); }
 addEventListener('online', () => { gFlush(); });
 let rsz; addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if ($('#tab-reports').classList.contains('active')) renderReports(); }, 200); });
 if (gReady()) gLoadCals().then(() => { gFlush(); renderAll(); });
+// compact the sticky timer once the page scrolls (hysteresis stops it flickering at the threshold)
+addEventListener('scroll', () => { const h = $('#hero'), c = h.classList.contains('compact'); if (!c && scrollY > 160) h.classList.add('compact'); else if (c && scrollY < 40) h.classList.remove('compact'); }, { passive: true });
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 window.__dot = { get S() { return S; }, G, renderAll, start, stop, switchTab, guard, openCmd, habits };
 })();
