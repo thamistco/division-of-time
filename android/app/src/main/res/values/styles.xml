@@ -5,5 +5,5 @@
     <item name="android:windowLightStatusBar">true</item>
     <item name="android:windowBackground">#F5F4F0</item>
   </style>
-  <color name="wbg">#FAFAF7</color><color name="wtext">#1C1B1F</color><color name="wmuted">#6B6A70</color><color name="wchip">#ECEAE4</color>
+  <color name="wbg">#FFFFFF</color><color name="wtext">#1C1B1F</color><color name="wmuted">#6B6A70</color><color name="wbg2">#F3F1EB</color><color name="wline">#14000000</color><color name="wchip">#ECEAE4</color>
 </resources>

@@ -1,23 +1,28 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/root"
   android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical"
-  android:background="@drawable/w_bg" android:padding="14dp">
+  android:background="@drawable/w_bg" android:paddingStart="18dp" android:paddingEnd="14dp" android:paddingTop="14dp" android:paddingBottom="14dp">
   <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:gravity="center_vertical">
     <LinearLayout android:id="@+id/open" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
-      <TextView android:id="@+id/label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/wmuted" android:textSize="13sp" android:maxLines="1" android:ellipsize="end" android:text="Not tracking" />
-      <Chronometer android:id="@+id/chrono" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/wtext" android:textSize="30sp" android:fontFamily="sans-serif-medium" />
-      <TextView android:id="@+id/idle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/wtext" android:textSize="30sp" android:fontFamily="sans-serif-medium" android:text="0:00:00" />
+      <TextView android:id="@+id/label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/wmuted"
+        android:textSize="13sp" android:fontFamily="sans-serif-medium" android:maxLines="1" android:ellipsize="end" android:text="Not tracking" />
+      <Chronometer android:id="@+id/chrono" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/wtext"
+        android:textSize="36sp" android:fontFamily="sans-serif-light" android:letterSpacing="-0.02" android:fontFeatureSettings="tnum" android:includeFontPadding="false" android:layout_marginTop="2dp" />
     </LinearLayout>
-    <TextView android:id="@+id/stop" android:layout_width="48dp" android:layout_height="48dp" android:background="@drawable/w_stop" android:gravity="center" android:text="■" android:textColor="@color/wbg" android:textSize="16sp" />
+    <FrameLayout android:id="@+id/reset" android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/w_ghost" android:contentDescription="Reset">
+      <ImageView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:src="@drawable/wi_reset_t" />
+    </FrameLayout>
+    <FrameLayout android:id="@+id/toggle" android:layout_width="54dp" android:layout_height="54dp" android:layout_marginStart="8dp" android:contentDescription="Play or pause">
+      <ImageView android:id="@+id/toggleBg" android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/w_circle_ink" />
+      <ImageView android:id="@+id/toggleIcon" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center" android:src="@drawable/wi_play_inv" />
+    </FrameLayout>
+    <FrameLayout android:id="@+id/stop" android:layout_width="40dp" android:layout_height="40dp" android:layout_marginStart="8dp" android:background="@drawable/w_ghost" android:contentDescription="Stop">
+      <ImageView android:layout_width="18dp" android:layout_height="18dp" android:layout_gravity="center" android:src="@drawable/wi_stop_t" />
+    </FrameLayout>
   </LinearLayout>
   <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="10dp">
-    <TextView android:id="@+id/c0" android:layout_width="0dp" android:layout_weight="1" android:layout_height="40dp"
-      android:layout_marginStart="0dp" android:background="@drawable/w_chip" android:gravity="center" android:paddingHorizontal="6dp"
-      android:textColor="@color/wtext" android:textSize="13sp" android:maxLines="1" android:ellipsize="end" android:text="—" /><TextView android:id="@+id/c1" android:layout_width="0dp" android:layout_weight="1" android:layout_height="40dp"
-      android:layout_marginStart="6dp" android:background="@drawable/w_chip" android:gravity="center" android:paddingHorizontal="6dp"
-      android:textColor="@color/wtext" android:textSize="13sp" android:maxLines="1" android:ellipsize="end" android:text="—" /><TextView android:id="@+id/c2" android:layout_width="0dp" android:layout_weight="1" android:layout_height="40dp"
-      android:layout_marginStart="6dp" android:background="@drawable/w_chip" android:gravity="center" android:paddingHorizontal="6dp"
-      android:textColor="@color/wtext" android:textSize="13sp" android:maxLines="1" android:ellipsize="end" android:text="—" /><TextView android:id="@+id/c3" android:layout_width="0dp" android:layout_weight="1" android:layout_height="40dp"
-      android:layout_marginStart="6dp" android:background="@drawable/w_chip" android:gravity="center" android:paddingHorizontal="6dp"
-      android:textColor="@color/wtext" android:textSize="13sp" android:maxLines="1" android:ellipsize="end" android:text="—" />
+    <TextView android:id="@+id/c0" android:layout_width="0dp" android:layout_weight="1" android:layout_height="36dp" android:layout_marginStart="0dp" android:background="@drawable/w_chip" android:gravity="center" android:paddingHorizontal="8dp" android:textColor="@color/wtext" android:textSize="12.5sp" android:fontFamily="sans-serif-medium" android:maxLines="1" android:ellipsize="end" android:text="—" />
+    <TextView android:id="@+id/c1" android:layout_width="0dp" android:layout_weight="1" android:layout_height="36dp" android:layout_marginStart="6dp" android:background="@drawable/w_chip" android:gravity="center" android:paddingHorizontal="8dp" android:textColor="@color/wtext" android:textSize="12.5sp" android:fontFamily="sans-serif-medium" android:maxLines="1" android:ellipsize="end" android:text="—" />
+    <TextView android:id="@+id/c2" android:layout_width="0dp" android:layout_weight="1" android:layout_height="36dp" android:layout_marginStart="6dp" android:background="@drawable/w_chip" android:gravity="center" android:paddingHorizontal="8dp" android:textColor="@color/wtext" android:textSize="12.5sp" android:fontFamily="sans-serif-medium" android:maxLines="1" android:ellipsize="end" android:text="—" />
+    <TextView android:id="@+id/c3" android:layout_width="0dp" android:layout_weight="1" android:layout_height="36dp" android:layout_marginStart="6dp" android:background="@drawable/w_chip" android:gravity="center" android:paddingHorizontal="8dp" android:textColor="@color/wtext" android:textSize="12.5sp" android:fontFamily="sans-serif-medium" android:maxLines="1" android:ellipsize="end" android:text="—" />
   </LinearLayout>
 </LinearLayout>

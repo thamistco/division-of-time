@@ -36,7 +36,7 @@ final class TimerNotification {
         .setSmallIcon(R.drawable.ic_timer)
         .setContentTitle(run.optString("name", "Timer running"))
         .setUsesChronometer(true)
-        .setWhen(run.optLong("start", System.currentTimeMillis()))
+        .setWhen(run.optLong("start", System.currentTimeMillis()) - run.optLong("acc", 0))
         .setShowWhen(true)
         .setOngoing(true)
         .setOnlyAlertOnce(true)

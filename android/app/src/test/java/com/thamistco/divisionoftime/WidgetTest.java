@@ -41,24 +41,28 @@ public class WidgetTest {
   String text(int id) { return ((TextView) view().findViewById(id)).getText().toString(); }
   void tap(String type, String cat) { new WidgetAction().onReceive(c, new Intent(c, WidgetAction.class).putExtra("type", type).putExtra("cat", cat)); }
 
-  @Test public void idleShowsFourButtonsAndNoStop() {
+  float alpha(int id) { return view().findViewById(id).getAlpha(); }
+  JSONArray pending() throws Exception { return new JSONArray(Store.takePending(c)); }
+
+  @Test public void idleShowsChipsAndDimmedControls() {
     assertEquals("● Surgery", text(R.id.c0));
     assertEquals("● Self-study", text(R.id.c3));
     assertEquals("Not tracking", text(R.id.label));
-    assertEquals(View.GONE, view().findViewById(R.id.stop).getVisibility());
-    assertEquals(View.VISIBLE, view().findViewById(R.id.idle).getVisibility());
+    assertEquals(0.35f, alpha(R.id.stop), 0.01);
+    assertEquals(0.35f, alpha(R.id.reset), 0.01);
+    assertEquals("Start", view().findViewById(R.id.toggle).getContentDescription());
   }
 
-  @Test public void tapStartsTimerWithoutApp() throws Exception {
+  @Test public void chipStartsTimerWithoutApp() throws Exception {
     long before = System.currentTimeMillis();
     tap("start", "c3");
     JSONObject run = Store.state(c).getJSONObject("running");
     assertEquals("c3", run.getString("catId"));
     assertTrue(run.getLong("start") >= before);
     assertEquals("● Family time", text(R.id.label));
-    assertEquals(View.VISIBLE, view().findViewById(R.id.stop).getVisibility());
-    assertEquals(View.VISIBLE, view().findViewById(R.id.chrono).getVisibility());
-    JSONArray p = new JSONArray(Store.takePending(c));
+    assertEquals(1f, alpha(R.id.stop), 0.01);
+    assertEquals("Pause", view().findViewById(R.id.toggle).getContentDescription());
+    JSONArray p = pending();
     assertEquals(1, p.length());
     assertEquals("start", p.getJSONObject(0).getString("t"));
     assertEquals("[]", Store.takePending(c));
@@ -67,8 +71,7 @@ public class WidgetTest {
   @Test public void tappingRunningCategoryStopsIt() throws Exception {
     tap("start", "c1"); tap("start", "c1");
     assertFalse(Store.state(c).has("running"));
-    JSONArray p = new JSONArray(Store.takePending(c));
-    assertEquals("stop", p.getJSONObject(1).getString("t"));
+    assertEquals("stop", pending().getJSONObject(1).getString("t"));
     assertEquals("Not tracking", text(R.id.label));
   }
 
@@ -77,7 +80,42 @@ public class WidgetTest {
     assertEquals("c2", Store.state(c).getJSONObject("running").getString("catId"));
     tap("stop", "");
     assertFalse(Store.state(c).has("running"));
-    assertEquals(3, new JSONArray(Store.takePending(c)).length());
+    assertEquals(3, pending().length());
+  }
+
+  @Test public void pauseKeepsElapsedAndPlayResumes() throws Exception {
+    tap("start", "c2");
+    JSONObject st = Store.state(c); JSONObject r = st.getJSONObject("running");
+    r.put("start", System.currentTimeMillis() - 600_000); r.put("sess", r.getLong("start")); Store.setState(c, st.toString());
+    tap("toggle", "");
+    JSONObject pz = Store.state(c).getJSONObject("paused");
+    assertFalse(Store.state(c).has("running"));
+    assertTrue(pz.getLong("acc") >= 600_000 && pz.getLong("acc") < 605_000);
+    assertTrue(text(R.id.label).contains("Paused"));
+    assertEquals("Resume", view().findViewById(R.id.toggle).getContentDescription());
+    assertTrue(text(R.id.chrono).startsWith("10:0"));
+    tap("toggle", "");
+    JSONObject run = Store.state(c).getJSONObject("running");
+    assertEquals("c2", run.getString("catId"));
+    assertEquals(pz.getLong("acc"), run.getLong("acc"));
+    assertEquals(pz.getLong("sess"), run.getLong("sess"));
+    assertTrue(text(R.id.chrono).startsWith("10:0"));
+    JSONArray p = pending();
+    assertEquals("pause", p.getJSONObject(1).getString("t"));
+    assertEquals("play", p.getJSONObject(2).getString("t"));
+  }
+
+  @Test public void playWhenIdleStartsLastCategory() throws Exception {
+    tap("start", "c4"); tap("stop", ""); tap("toggle", "");
+    assertEquals("c4", Store.state(c).getJSONObject("running").getString("catId"));
+  }
+
+  @Test public void resetDiscardsSession() throws Exception {
+    tap("start", "c1"); tap("toggle", ""); tap("reset", "");
+    assertFalse(Store.state(c).has("running")); assertFalse(Store.state(c).has("paused"));
+    JSONObject a = pending().getJSONObject(2);
+    assertEquals("reset", a.getString("t")); assertEquals("c1", a.getString("cat")); assertTrue(a.has("sess"));
+    assertEquals("Not tracking", text(R.id.label));
   }
 
   @Test public void runningStateFromAppShowsElapsed() throws Exception {

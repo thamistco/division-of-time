@@ -110,7 +110,9 @@ function nativeSync() {
     try {
       const r = S.entries.find(e => e.end === null), c = r && S.cats.find(k => k.id === r.catId);
       NATIVE.sync(JSON.stringify({
-        running: r && c ? { catId: r.catId, name: r.desc || c.name, color: colour(c), start: r.start } : null,
+        running: r && c ? (() => { const z = S.settings.resume, m = z && z.catId === r.catId && z.start === r.start; return { catId: r.catId, name: r.desc || c.name, color: colour(c), start: r.start, acc: m ? z.acc : 0, sess: m ? z.sess : r.start }; })() : null,
+        paused: !r && S.settings.paused && S.cats.find(k => k.id === S.settings.paused.catId) ? (() => { const z = S.settings.paused, k = S.cats.find(x => x.id === z.catId); return { catId: z.catId, name: k.name, color: colour(k), acc: z.acc, sess: z.sess }; })() : null,
+        lastCat: S.cats.find(k => k.id === S.settings.lastCat) ? (() => { const k = S.cats.find(x => x.id === S.settings.lastCat); return { id: k.id, name: k.name, color: colour(k) }; })() : null,
         notif: S.settings.lockNotif !== false,
         cats: widgetCats().map(id => { const k = S.cats.find(x => x.id === id); return { id, name: k.name, short: shortName(k.name), color: colour(k) }; })
       }));
@@ -124,8 +126,20 @@ window.__dotNativePending = () => {
   if (!acts.length) { nativeSync(); return; }
   for (const a of acts) {
     const r = S.entries.find(e => e.end === null);
-    if (r) { r.end = Math.max(r.start, a.at); if (r.end - r.start < 15000) S.entries = S.entries.filter(e => e !== r); else gSync(r); }
-    if (a.t === 'start' && S.cats.some(c => c.id === a.cat)) { S.entries.push({ id: uid(), catId: a.cat, desc: '', start: a.at, end: null }); S.settings.lastCat = a.cat; }
+    if (r && a.t === 'reset') S.entries = S.entries.filter(e => e !== r);
+    else if (r) { r.end = Math.max(r.start, a.at); if (r.end - r.start < 15000) S.entries = S.entries.filter(e => e !== r); else gSync(r); }
+    const known = S.cats.some(c => c.id === a.cat);
+    if ((a.t === 'start' || a.t === 'play') && known) {
+      S.entries.push({ id: uid(), catId: a.cat, desc: '', start: a.at, end: null }); S.settings.lastCat = selCat = a.cat;
+      delete S.settings.paused;
+      if (a.t === 'play') S.settings.resume = { catId: a.cat, start: a.at, acc: a.acc || 0, sess: a.sess || a.at }; else delete S.settings.resume;
+    } else if (a.t === 'pause' && known) { S.settings.paused = { catId: a.cat, acc: a.acc || 0, sess: a.sess || a.at }; selCat = a.cat; delete S.settings.resume; }
+    else if (a.t === 'stop') { delete S.settings.paused; delete S.settings.resume; }
+    else if (a.t === 'reset') { // discard the whole session, including pieces logged before a pause
+      S.entries.filter(e => e.catId === a.cat && e.end && e.start >= (a.sess || a.at) - 1000 && !e.marker).forEach(e => gDelete(e));
+      S.entries = S.entries.filter(e => !(e.catId === a.cat && e.end && e.start >= (a.sess || a.at) - 1000 && !e.marker));
+      delete S.settings.paused; delete S.settings.resume;
+    }
   }
   save(); renderAll();
 };
@@ -225,10 +239,12 @@ function start(catId = selCat, desc = $('#desc').value.trim(), focusMin = 0, ifT
   const e = { id: uid(), catId, desc, start: now, end: null };
   if (focusMin) { e.focus = true; e.focusEnd = now + focusMin * MIN; if (ifThen) e.ifThen = ifThen; }
   S.entries.push(e);
+  delete S.settings.paused; delete S.settings.resume;
   selCat = catId; S.settings.lastCat = catId; S.settings.guardAck = null; S.settings.focusDone = false;
   save(); buzz(10); announce(`Started ${cat(catId).name}`); renderAll();
 }
 function stop(silent, at) {
+  if (!silent) delete S.settings.paused;
   const r = running(); if (!r) return;
   r.end = Math.min(at || Date.now(), Date.now());
   if (r.end - r.start < 15000) { S.entries = S.entries.filter(e => e !== r); save(); if (!silent) { $('#desc').value = ''; renderAll(); } return; }
@@ -379,7 +395,8 @@ function tick() {
     document.title = 'Division of Time'; fb.hidden = true;
     $('#focusBtn').classList.remove('on'); $('#focusLbl').textContent = `Focus ${S.settings.focusLen}`;
     const last = lastStopped();
-    hint.textContent = last && Date.now() - last.end < 12 * H ? `Not tracking · stopped at ${fmtTime(last.end)}` : 'Tap a category to start';
+    const pz = S.settings.paused && S.cats.find(c => c.id === S.settings.paused.catId);
+    hint.textContent = pz ? `Paused · ${pz.name} · ${fmtHM(S.settings.paused.acc || 0)} so far` : last && Date.now() - last.end < 12 * H ? `Not tracking · stopped at ${fmtTime(last.end)}` : 'Tap a category to start';
     const w = waking(sod(Date.now())), since = last ? Date.now() - last.end : Infinity;
     if (S.settings.notify && Date.now() > w.st && Date.now() < w.fullEnd && since > 30 * MIN && Date.now() - idleWarned > 60 * MIN && !document.hidden) { idleWarned = Date.now(); notify('Nothing tracked for 30 minutes. What are you doing?'); }
   }

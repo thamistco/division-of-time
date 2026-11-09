@@ -4,5 +4,5 @@
     <item name="android:navigationBarColor">#0F0F12</item>
     <item name="android:windowBackground">#0F0F12</item>
   </style>
-  <color name="wbg">#1A1A1E</color><color name="wtext">#ECEAE4</color><color name="wmuted">#9C9AA2</color><color name="wchip">#2A2A30</color>
+  <color name="wbg">#222227</color><color name="wtext">#ECEAE4</color><color name="wmuted">#9C9AA2</color><color name="wbg2">#141417</color><color name="wline">#1FFFFFFF</color><color name="wchip">#2A2A30</color>
 </resources>
