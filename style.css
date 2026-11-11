@@ -10,32 +10,32 @@
    depth   0 flat · 1 card · 2 hero/menus · 3 dialogs                                             */
 :root{
   color-scheme:light;
-  --bg:#F5F4F0;--surface:#FFFFFF;--surface-2:#F0EFEB;--surface-3:#E6E5E0;
-  --line:rgb(24 24 27/.07);--border:#E3E2DD;--border-strong:#A3A3AA;
-  --text:#1A1A1E;--text-2:#56565E;--text-3:#6F6F78;
-  /* v5: the interface is ink on paper; colour is reserved for your categories (data), red for stop/now, green for done */
-  --accent:#1C1B1F;--on-accent:#FAFAF7;--accent-tint:#ECEAE4;--accent-text:#1C1B1F;
-  --danger:#C4372B;--success:#2F7D4F;--warn:#9A5B0B;
-  --warn-tint:color-mix(in oklch,#F59E0B 12%,var(--surface));--good-tint:color-mix(in oklch,#22C55E 10%,var(--surface));
-  --shadow-1:0 1px 2px rgb(28 25 23/.05),0 1px 3px rgb(28 25 23/.04);
-  --shadow-2:0 1px 2px rgb(28 25 23/.04),0 8px 24px -6px rgb(28 25 23/.12);
-  --shadow-3:0 2px 6px rgb(0 0 0/.05),0 24px 64px -12px rgb(0 0 0/.25);
-  --font:"Inter",-apple-system,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif;
-  --display:"Fraunces","Iowan Old Style","Palatino Linotype",Georgia,serif;
-  --r-1:8px;--r-2:12px;--r-3:20px;
+  --bg:#FBF7F2;--surface:#FFFFFF;--surface-2:#F3ECE4;--surface-3:#ECE3D8;
+  --line:rgb(42 33 28/.06);--border:#ECE3D8;--border-strong:#D8C9BA;
+  --text:#2A211C;--text-2:#64574D;--text-3:#8A7C71;
+  /* Pebble skin: warm cream canvas, terracotta brand, sea green for done; category colours stay the data */
+  --accent:#B04A2F;--on-accent:#FFFFFF;--accent-tint:#F6E1D8;--accent-text:#7E3018;
+  --danger:#C4372B;--success:#2D6A66;--warn:#6A4A0E;
+  --warn-tint:#FBEBD0;--good-tint:#DCEBE8;
+  --shadow-1:0 1px 2px rgb(60 40 25/.06),0 1px 3px rgb(60 40 25/.05);
+  --shadow-2:0 1px 2px rgb(60 40 25/.06),0 8px 24px rgb(60 40 25/.08);
+  --shadow-3:0 2px 6px rgb(60 40 25/.08),0 24px 64px -12px rgb(60 40 25/.22);
+  --font:ui-rounded,"SF Pro Rounded","Nunito","Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --display:ui-rounded,"SF Pro Rounded","Nunito","Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --r-1:12px;--r-2:18px;--r-3:26px;
   --dur-1:100ms;--dur-2:180ms;--dur-3:260ms;--dur-4:200ms;
   --ease-out:cubic-bezier(.2,.8,.2,1);--ease-in:cubic-bezier(.4,0,1,1);
   --hour:52px;--run:var(--accent);
 }
 [data-theme=dark]{
   color-scheme:dark;
-  --bg:#0F0F12;--surface:#18181C;--surface-2:#212126;--surface-3:#2B2B31;
-  --line:rgb(255 255 255/.06);--border:#2E2E34;--border-strong:#6B6B74;
-  --text:#ECECEF;--text-2:#A6A6AF;--text-3:#8A8A94;
-  --accent:#ECEAE4;--on-accent:#141416;--accent-tint:#2A2A30;--accent-text:#F2F1EC;
-  --danger:#F97066;--success:#4ADE80;--warn:#FBBF24;
-  --warn-tint:color-mix(in oklch,#F59E0B 13%,var(--surface));--good-tint:color-mix(in oklch,#22C55E 11%,var(--surface));
-  --shadow-1:0 0 0 1px rgb(255 255 255/.04);--shadow-2:0 0 0 1px rgb(255 255 255/.05),0 12px 32px -8px rgb(0 0 0/.6);--shadow-3:0 0 0 1px rgb(255 255 255/.06),0 24px 64px rgb(0 0 0/.6);
+  --bg:#171311;--surface:#221C19;--surface-2:#2A231F;--surface-3:#352C27;
+  --line:rgb(255 255 255/.06);--border:#352C27;--border-strong:#5A4C42;
+  --text:#F4EDE7;--text-2:#C3B6AB;--text-3:#A29488;
+  --accent:#F0927A;--on-accent:#2A120A;--accent-tint:#4A2A20;--accent-text:#FFD9CC;
+  --danger:#F97066;--success:#8CCFC7;--warn:#F6DDA6;
+  --warn-tint:#3A2E17;--good-tint:#1F3634;
+  --shadow-1:0 1px 2px rgb(0 0 0/.3);--shadow-2:0 1px 2px rgb(0 0 0/.3),0 8px 24px rgb(0 0 0/.35);--shadow-3:0 2px 6px rgb(0 0 0/.4),0 24px 64px rgb(0 0 0/.5);
 }
 
 /* ---------- base ---------- */
@@ -495,3 +495,44 @@ body{overflow-wrap:break-word}.app{overflow-x:clip}.clock{min-width:0}.clock > *
 .tbl td,.tbl th{overflow-wrap:anywhere}
 @media (max-width:480px){#tab-today .stats .stat{padding:12px 10px 12px 14px}#tab-today .stats .stat .v{font-size:clamp(16px,4.8vw,20px)}}
 .hrs span{white-space:nowrap}@media (max-width:480px){.hrs span{right:3px;font-size:10px;letter-spacing:-.02em}}
+
+
+/* ================= Pebble skin (component layer) =================
+   Warm, calm, borderless: pill buttons, big radii, tinted hero, segmented tabs */
+html,body{font-family:var(--font)}
+h1,h2,h3,.display,.daynav h2{font-family:var(--display);letter-spacing:-.01em}
+button{border-radius:999px;min-height:44px;font-weight:650}
+.sm{min-height:36px;border-radius:999px}
+.icon{min-width:44px}
+input:not([type=checkbox]):not([type=radio]),select,textarea{border-radius:var(--r-1)}
+:focus-visible{outline:3px solid var(--success);border-radius:10px}
+
+/* hero timer: Pebble hero treatment - soft brand tint, no border */
+.hero{background:var(--accent-tint);color:var(--accent-text);box-shadow:var(--shadow-2);border-radius:var(--r-3)}
+.hero input#desc{color:var(--text)}
+.hero input#desc::placeholder{color:var(--accent-text);opacity:.7}
+.hero .hint{color:var(--accent-text)}
+.hero .chev{color:var(--accent-text)}
+.hero .cat-btn{background:color-mix(in oklch,var(--surface) 65%,transparent)}
+.hero:not(.running) .elapsed{color:var(--accent-text);opacity:.65}
+.hero .focus-btn{background:color-mix(in oklch,var(--surface) 65%,transparent)}
+.hero .nextstep{background:color-mix(in oklch,var(--surface) 60%,transparent);color:var(--text-2);border-radius:var(--r-1)}
+
+/* category chips: tone chips, Pebble-soft */
+.chip{background:var(--surface);box-shadow:var(--shadow-1);min-height:40px}
+.chip.manage{box-shadow:inset 0 0 0 1px var(--border)}
+
+/* tabs: Pebble segmented control instead of underline tabs */
+.tabs{gap:6px;margin:16px 0 24px;box-shadow:none;background:var(--surface-2);border-radius:999px;padding:5px}
+.tabs button{border-radius:999px;min-height:44px;color:var(--text-2);box-shadow:none;flex:1;justify-content:center;font-weight:650}
+.tabs button:hover{color:var(--text);background:color-mix(in oklch,var(--surface) 55%,transparent)}
+.tabs button.active{color:var(--accent-text);background:var(--surface);box-shadow:var(--shadow-1)}
+.tabdot{background:var(--accent)}
+
+/* cards: Pebble radius already via --r-2; softer heading treatment */
+.card{border-radius:var(--r-2)}
+.stat .v,.elapsed{letter-spacing:-.02em}
+
+/* day nav heading weight like Pebble section titles */
+.daynav h2{font-weight:750}
+kbd{border-radius:7px;background:var(--surface-2)}
